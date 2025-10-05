@@ -133,6 +133,36 @@ await builder
     .AssertAsync();
 ```
 
+### OR Assertions
+
+Use `OrShouldContainResponse` to create flexible response validation where at least one of the alternatives must match:
+
+```csharp
+await builder
+    .WithPrompt("What is the capital of France?")
+    .ShouldContainResponse("capital")
+    .OrShouldContainResponse("city")
+    .OrShouldContainResponse("Paris")
+    .AssertAsync();
+```
+
+In this example, the test passes if the response contains "capital" OR "city" OR "Paris". You can chain multiple OR conditions, and the test will pass if any one of them is found in the response.
+
+#### Combining AND and OR Assertions
+
+You can mix `ShouldContainResponse` (AND) with `OrShouldContainResponse` (OR) for complex validation:
+
+```csharp
+await builder
+    .WithPrompt("Explain machine learning")
+    .ShouldContainResponse("algorithm")  // Must contain "algorithm"
+    .ShouldContainResponse("data")       // AND must contain "data"
+    .OrShouldContainResponse("train")    // AND must contain "train" OR "learn"
+    .AssertAsync();
+```
+
+Note: `OrShouldContainResponse` creates an OR group with the immediately preceding assertion. Each subsequent `OrShouldContainResponse` adds another alternative to that OR group.
+
 ## Testing Example with xUnit
 
 ```csharp
@@ -182,7 +212,8 @@ Set the following configuration:
 
 - `WithPrompt(prompt)`: Add a single prompt
 - `WithPrompts(params prompts)`: Add multiple prompts
-- `ShouldContainResponse(expectedText)`: Assert response contains text (case-insensitive)
+- `ShouldContainResponse(expectedText)`: Assert response contains text (case-insensitive, AND condition)
+- `OrShouldContainResponse(expectedText)`: Assert response contains alternative text (case-insensitive, OR condition)
 - `AssertAsync(cancellationToken)`: Assert the test by executing prompts and validating responses
 
 ## Error Handling
@@ -190,7 +221,11 @@ Set the following configuration:
 Detester throws `DetesterException` when:
 - No prompts are provided before execution
 - Expected text is not found in the response
+- None of the OR alternatives are found in the response
 - Configuration is invalid
+
+Detester throws `InvalidOperationException` when:
+- `OrShouldContainResponse` is called without a prior assertion
 
 Example:
 
