@@ -8,7 +8,7 @@ using Microsoft.Extensions.AI;
 /// <summary>
 /// Tests for the DetesterFactory class.
 /// </summary>
-public class DetesterFactoryTests
+public partial class DetesterFactoryTests
 {
     [Fact]
     public void CreateWithOpenAI_WithNullApiKey_ThrowsArgumentException()
@@ -153,45 +153,5 @@ public class DetesterFactoryTests
         // Assert
         Assert.NotNull(builder);
         Assert.IsAssignableFrom<IDetesterBuilder>(builder);
-    }
-
-    /// <summary>
-    /// Mock implementation of IChatClient for testing.
-    /// </summary>
-    private class MockChatClient : IChatClient
-    {
-        public ChatClientMetadata Metadata => new ChatClientMetadata("MockClient");
-
-        public Task<ChatCompletion> CompleteAsync(
-            IList<ChatMessage> chatMessages,
-            ChatOptions? options = null,
-            CancellationToken cancellationToken = default)
-        {
-            return Task.FromResult(new ChatCompletion(
-                new ChatMessage(ChatRole.Assistant, "Mock response")));
-        }
-
-        public IAsyncEnumerable<StreamingChatCompletionUpdate> CompleteStreamingAsync(
-            IList<ChatMessage> chatMessages,
-            ChatOptions? options = null,
-            CancellationToken cancellationToken = default)
-        {
-            throw new NotImplementedException();
-        }
-
-        public TService? GetService<TService>(object? key = null)
-            where TService : class
-        {
-            return null;
-        }
-
-        public object? GetService(Type serviceType, object? key = null)
-        {
-            return null;
-        }
-
-        public void Dispose()
-        {
-        }
     }
 }
