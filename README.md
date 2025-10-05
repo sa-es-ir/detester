@@ -1,0 +1,2 @@
+# detester
+AI Deterministic Tester
