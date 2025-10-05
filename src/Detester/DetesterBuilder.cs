@@ -1,5 +1,3 @@
-// Copyright (c) Detester. All rights reserved.
-
 namespace Detester;
 
 using Detester.Abstraction;

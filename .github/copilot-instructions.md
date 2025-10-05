@@ -19,7 +19,6 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 
 - Follow C# naming conventions (PascalCase for public members, camelCase for private fields)
 - Use XML documentation comments for all public APIs
-- Include copyright headers in all source files: `// Copyright (c) Detester. All rights reserved.`
 - Follow StyleCop rules configured in `stylecop.json`
 - Use nullable reference types appropriately
 - Prefer explicit over implicit typing for clarity
