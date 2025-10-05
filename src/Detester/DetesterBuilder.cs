@@ -11,6 +11,7 @@ public class DetesterBuilder : IDetesterBuilder
     private readonly IChatClient chatClient;
     private readonly List<string> prompts = new ();
     private readonly List<string> expectedResponses = new ();
+    private readonly List<List<string>> orResponseGroups = new ();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DetesterBuilder"/> class.
@@ -68,6 +69,36 @@ public class DetesterBuilder : IDetesterBuilder
     }
 
     /// <inheritdoc/>
+    public IDetesterBuilder OrShouldContainResponse(string expectedText)
+    {
+        if (string.IsNullOrWhiteSpace(expectedText))
+        {
+            throw new ArgumentException("Expected text cannot be null or whitespace.", nameof(expectedText));
+        }
+
+        // If there are no existing expectations, treat this as a new OR group
+        if (this.expectedResponses.Count == 0 && this.orResponseGroups.Count == 0)
+        {
+            throw new InvalidOperationException("OrShouldContainResponse must be called after ShouldContainResponse or another OrShouldContainResponse.");
+        }
+
+        // If the last expectation was an AND (in expectedResponses), move it to a new OR group
+        if (this.expectedResponses.Count > 0)
+        {
+            var lastExpectation = this.expectedResponses[this.expectedResponses.Count - 1];
+            this.expectedResponses.RemoveAt(this.expectedResponses.Count - 1);
+            this.orResponseGroups.Add(new List<string> { lastExpectation, expectedText });
+        }
+        else
+        {
+            // Add to the last OR group
+            this.orResponseGroups[this.orResponseGroups.Count - 1].Add(expectedText);
+        }
+
+        return this;
+    }
+
+    /// <inheritdoc/>
     public async Task AssertAsync(CancellationToken cancellationToken = default)
     {
         if (this.prompts.Count == 0)
@@ -91,9 +122,11 @@ public class DetesterBuilder : IDetesterBuilder
             chatHistory.Add(response.Message);
 
             // Check if response contains expected text for any of the assertions
-            if (this.expectedResponses.Count > 0)
+            if (this.expectedResponses.Count > 0 || this.orResponseGroups.Count > 0)
             {
                 var responseText = response.Message.Text ?? string.Empty;
+
+                // Check AND assertions
                 var missingExpectations = this.expectedResponses
                     .Where(expected => !responseText.Contains(expected, StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -104,6 +137,21 @@ public class DetesterBuilder : IDetesterBuilder
                     throw new DetesterException(
                         $"Response did not contain expected text(s): {missingText}. " +
                         $"Actual response: {responseText}");
+                }
+
+                // Check OR assertions (at least one in each OR group must match)
+                foreach (var orGroup in this.orResponseGroups)
+                {
+                    var hasMatch = orGroup.Any(expected =>
+                        responseText.Contains(expected, StringComparison.OrdinalIgnoreCase));
+
+                    if (!hasMatch)
+                    {
+                        var orOptions = string.Join("' OR '", orGroup);
+                        throw new DetesterException(
+                            $"Response did not contain any of the expected alternatives: '{orOptions}'. " +
+                            $"Actual response: {responseText}");
+                    }
                 }
             }
         }
