@@ -129,18 +129,18 @@ public class DetesterBuilderTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithoutPrompts_ThrowsDetesterException()
+    public async Task AssertAsync_WithoutPrompts_ThrowsDetesterException()
     {
         // Arrange
         var mockClient = new MockChatClient();
         var builder = new DetesterBuilder(mockClient);
 
         // Act & Assert
-        await Assert.ThrowsAsync<DetesterException>(() => builder.ExecuteAsync());
+        await Assert.ThrowsAsync<DetesterException>(() => builder.AssertAsync());
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithPrompt_CompletesSuccessfully()
+    public async Task AssertAsync_WithPrompt_CompletesSuccessfully()
     {
         // Arrange
         var mockClient = new MockChatClient
@@ -150,14 +150,14 @@ public class DetesterBuilderTests
         var builder = new DetesterBuilder(mockClient);
 
         // Act
-        await builder.WithPrompt("Test prompt").ExecuteAsync();
+        await builder.WithPrompt("Test prompt").AssertAsync();
 
         // Assert - No exception means success
         Assert.True(true);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithMatchingExpectation_CompletesSuccessfully()
+    public async Task AssertAsync_WithMatchingExpectation_CompletesSuccessfully()
     {
         // Arrange
         var mockClient = new MockChatClient
@@ -170,14 +170,14 @@ public class DetesterBuilderTests
         await builder
             .WithPrompt("Test prompt")
             .ShouldContainResponse("test response")
-            .ExecuteAsync();
+            .AssertAsync();
 
         // Assert - No exception means success
         Assert.True(true);
     }
 
     [Fact]
-    public async Task ExecuteAsync_WithNonMatchingExpectation_ThrowsDetesterException()
+    public async Task AssertAsync_WithNonMatchingExpectation_ThrowsDetesterException()
     {
         // Arrange
         var mockClient = new MockChatClient
@@ -191,11 +191,11 @@ public class DetesterBuilderTests
             builder
                 .WithPrompt("Test prompt")
                 .ShouldContainResponse("missing text")
-                .ExecuteAsync());
+                .AssertAsync());
     }
 
     [Fact]
-    public async Task ExecuteAsync_SupportsMethodChaining()
+    public async Task AssertAsync_SupportsMethodChaining()
     {
         // Arrange
         var mockClient = new MockChatClient
@@ -210,7 +210,7 @@ public class DetesterBuilderTests
             .WithPrompt("Second prompt")
             .ShouldContainResponse("expected")
             .ShouldContainResponse("keywords")
-            .ExecuteAsync();
+            .AssertAsync();
 
         // Assert - No exception means success
         Assert.True(true);

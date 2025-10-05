@@ -29,9 +29,9 @@ public interface IDetesterBuilder
     IDetesterBuilder ShouldContainResponse(string expectedText);
 
     /// <summary>
-    /// Executes the test asynchronously.
+    /// Asserts the test asynchronously by executing the configured prompts and validating responses.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task ExecuteAsync(CancellationToken cancellationToken = default);
+    Task AssertAsync(CancellationToken cancellationToken = default);
 }

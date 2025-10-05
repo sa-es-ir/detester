@@ -36,7 +36,7 @@ var builder = DetesterFactory.CreateWithOpenAI(
 await builder
     .WithPrompt("What is the capital of France?")
     .ShouldContainResponse("Paris")
-    .ExecuteAsync();
+    .AssertAsync();
 ```
 
 ### Using Azure OpenAI
@@ -54,7 +54,7 @@ var builder = DetesterFactory.CreateWithAzureOpenAI(
 await builder
     .WithPrompt("Explain quantum computing in simple terms")
     .ShouldContainResponse("quantum")
-    .ExecuteAsync();
+    .AssertAsync();
 ```
 
 ### Using Configuration Options
@@ -73,7 +73,7 @@ var builder = DetesterFactory.Create(options);
 await builder
     .WithPrompt("Tell me a joke")
     .ShouldContainResponse("joke")
-    .ExecuteAsync();
+    .AssertAsync();
 ```
 
 ## Advanced Usage
@@ -87,7 +87,7 @@ await builder
     .WithPrompt("Hello, I need help with coding")
     .WithPrompt("Can you explain what a variable is?")
     .ShouldContainResponse("variable")
-    .ExecuteAsync();
+    .AssertAsync();
 ```
 
 ### Multiple Assertions
@@ -99,7 +99,7 @@ await builder
     .WithPrompt("Write a haiku about programming")
     .ShouldContainResponse("code")
     .ShouldContainResponse("lines")
-    .ExecuteAsync();
+    .AssertAsync();
 ```
 
 ### Using Custom IChatClient
@@ -115,7 +115,7 @@ var builder = DetesterFactory.Create(customClient);
 await builder
     .WithPrompt("Test prompt")
     .ShouldContainResponse("expected text")
-    .ExecuteAsync();
+    .AssertAsync();
 ```
 
 ### Batch Prompts
@@ -130,7 +130,7 @@ await builder
         "Give me a practical example")
     .ShouldContainResponse("algorithm")
     .ShouldContainResponse("data")
-    .ExecuteAsync();
+    .AssertAsync();
 ```
 
 ## Testing Example with xUnit
@@ -150,7 +150,7 @@ public class AITests
         await builder
             .WithPrompt("What is 2+2?")
             .ShouldContainResponse("4")
-            .ExecuteAsync();
+            .AssertAsync();
     }
 }
 ```
@@ -183,7 +183,7 @@ Set the following configuration:
 - `WithPrompt(prompt)`: Add a single prompt
 - `WithPrompts(params prompts)`: Add multiple prompts
 - `ShouldContainResponse(expectedText)`: Assert response contains text (case-insensitive)
-- `ExecuteAsync(cancellationToken)`: Execute the test
+- `AssertAsync(cancellationToken)`: Assert the test by executing prompts and validating responses
 
 ## Error Handling
 
@@ -200,7 +200,7 @@ try
     await builder
         .WithPrompt("What is AI?")
         .ShouldContainResponse("impossible text that won't appear")
-        .ExecuteAsync();
+        .AssertAsync();
 }
 catch (DetesterException ex)
 {

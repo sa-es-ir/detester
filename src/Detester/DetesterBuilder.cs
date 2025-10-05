@@ -70,11 +70,11 @@ public class DetesterBuilder : IDetesterBuilder
     }
 
     /// <inheritdoc/>
-    public async Task ExecuteAsync(CancellationToken cancellationToken = default)
+    public async Task AssertAsync(CancellationToken cancellationToken = default)
     {
         if (this.prompts.Count == 0)
         {
-            throw new DetesterException("No prompts have been added. Use WithPrompt or WithPrompts before executing.");
+            throw new DetesterException("No prompts have been added. Use WithPrompt or WithPrompts before asserting.");
         }
 
         var chatHistory = new List<ChatMessage>();
