@@ -6,6 +6,19 @@
         <Nullable>enable</Nullable>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+        <!-- NuGet Package Metadata -->
+        <PackageId>Detester.Abstraction</PackageId>
+        <Version>0.1.0-preview.1</Version>
+        <Authors>Saeed Esmaeelinejad</Authors>
+        <Company>Detester</Company>
+        <Description>Abstractions and interfaces for the Detester testing framework. Contains core interfaces and types for building deterministic AI tests.</Description>
+        <PackageTags>ai;testing;deterministic;abstractions;interfaces</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/sa-es-ir/detester</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/sa-es-ir/detester.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     </PropertyGroup>
 
     <ItemGroup>

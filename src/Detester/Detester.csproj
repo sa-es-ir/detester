@@ -6,7 +6,25 @@
         <Nullable>enable</Nullable>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
         <GenerateDocumentationFile>true</GenerateDocumentationFile>
+
+        <!-- NuGet Package Metadata -->
+        <PackageId>Detester</PackageId>
+        <Version>0.1.0-preview.1</Version>
+        <Authors>Saeed Esmaeelinejad</Authors>
+        <Company>Detester</Company>
+        <Description>A testing framework for building deterministic and reliable tests for AI applications. Provides a fluent builder API for testing AI responses with support for OpenAI, Azure OpenAI, and custom chat clients.</Description>
+        <PackageTags>ai;testing;deterministic;openai;azure-openai;chatgpt;gpt;llm;machine-learning;test-framework</PackageTags>
+        <PackageLicenseExpression>MIT</PackageLicenseExpression>
+        <PackageProjectUrl>https://github.com/sa-es-ir/detester</PackageProjectUrl>
+        <RepositoryUrl>https://github.com/sa-es-ir/detester.git</RepositoryUrl>
+        <RepositoryType>git</RepositoryType>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\" />
+    </ItemGroup>
 
     <ItemGroup>
         <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
