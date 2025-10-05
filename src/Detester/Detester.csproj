@@ -5,11 +5,21 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+        <GenerateDocumentationFile>true</GenerateDocumentationFile>
     </PropertyGroup>
 
     <ItemGroup>
+        <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
         <PackageReference Include="Microsoft.Extensions.AI" Version="9.1.0-preview.1.25064.3" />
         <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="9.1.0-preview.1.25064.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Detester.Abstraction\Detester.Abstraction.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <AdditionalFiles Include="..\..\stylecop.json" Link="stylecop.json" />
     </ItemGroup>
 
 </Project>
