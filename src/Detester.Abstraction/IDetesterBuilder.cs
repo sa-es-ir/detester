@@ -27,6 +27,14 @@ public interface IDetesterBuilder
     IDetesterBuilder ShouldContainResponse(string expectedText);
 
     /// <summary>
+    /// Asserts that the AI response contains the specified text as an alternative to the previous assertion.
+    /// This creates an OR condition where at least one of the options in the OR group must match.
+    /// </summary>
+    /// <param name="expectedText">The alternative text that should be present in the response.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder OrShouldContainResponse(string expectedText);
+
+    /// <summary>
     /// Asserts the test asynchronously by executing the configured prompts and validating responses.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>

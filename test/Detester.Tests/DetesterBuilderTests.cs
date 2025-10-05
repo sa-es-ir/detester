@@ -203,4 +203,173 @@ public class DetesterBuilderTests
             .ShouldContainResponse("keywords")
             .AssertAsync(TestContext.Current.CancellationToken);
     }
+
+    [Fact]
+    public void OrShouldContainResponse_WithNullText_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            builder.ShouldContainResponse("test").OrShouldContainResponse(null!));
+    }
+
+    [Fact]
+    public void OrShouldContainResponse_WithEmptyText_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            builder.ShouldContainResponse("test").OrShouldContainResponse(string.Empty));
+    }
+
+    [Fact]
+    public void OrShouldContainResponse_WithValidText_ReturnsBuilder()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act
+        var result = builder
+            .ShouldContainResponse("test")
+            .OrShouldContainResponse("alternative");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IDetesterBuilder>(result);
+    }
+
+    [Fact]
+    public void OrShouldContainResponse_WithoutPriorAssertion_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<InvalidOperationException>(() =>
+            builder.OrShouldContainResponse("test"));
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithOrShouldContainResponse_FirstOptionMatches_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with expected keywords"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldContainResponse("expected")
+            .OrShouldContainResponse("alternative")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithOrShouldContainResponse_SecondOptionMatches_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with alternative keywords"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldContainResponse("expected")
+            .OrShouldContainResponse("alternative")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithOrShouldContainResponse_NoOptionMatches_ThrowsDetesterException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with different keywords"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("Test prompt")
+                .ShouldContainResponse("expected")
+                .OrShouldContainResponse("alternative")
+                .AssertAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("expected' OR 'alternative", exception.Message);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithMultipleOrOptions_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with keywords 2"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("First prompt")
+            .WithPrompt("Second prompt")
+            .ShouldContainResponse("expected")
+            .OrShouldContainResponse("keywords 1")
+            .OrShouldContainResponse("keywords 2")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithMixedAndOrAssertions_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with expected and alternative keywords"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldContainResponse("Response")
+            .ShouldContainResponse("expected")
+            .OrShouldContainResponse("missing")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithMixedAndOrAssertions_MissingAndAssertion_ThrowsDetesterException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with alternative keywords"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("Test prompt")
+                .ShouldContainResponse("missing")
+                .ShouldContainResponse("expected")
+                .OrShouldContainResponse("alternative")
+                .AssertAsync(TestContext.Current.CancellationToken));
+    }
 }
