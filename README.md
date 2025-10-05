@@ -157,7 +157,7 @@ await builder
     .WithPrompt("Explain machine learning")
     .ShouldContainResponse("algorithm")  // Must contain "algorithm"
     .ShouldContainResponse("data")       // AND must contain "data"
-    .OrShouldContainResponse("train")    // AND must contain "train" OR "learn"
+    .OrShouldContainResponse("train")    // AND must contain "train" OR "data"
     .AssertAsync();
 ```
 
