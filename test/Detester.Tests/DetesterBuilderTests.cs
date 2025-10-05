@@ -149,11 +149,8 @@ public class DetesterBuilderTests
         };
         var builder = new DetesterBuilder(mockClient);
 
-        // Act
+        // Act & Assert
         await builder.WithPrompt("Test prompt").AssertAsync();
-
-        // Assert - No exception means success
-        Assert.True(true);
     }
 
     [Fact]
@@ -166,14 +163,11 @@ public class DetesterBuilderTests
         };
         var builder = new DetesterBuilder(mockClient);
 
-        // Act
+        // Act & Assert
         await builder
             .WithPrompt("Test prompt")
             .ShouldContainResponse("test response")
             .AssertAsync();
-
-        // Assert - No exception means success
-        Assert.True(true);
     }
 
     [Fact]
@@ -204,16 +198,13 @@ public class DetesterBuilderTests
         };
         var builder = new DetesterBuilder(mockClient);
 
-        // Act
+        // Act & Assert
         await builder
             .WithPrompt("First prompt")
             .WithPrompt("Second prompt")
             .ShouldContainResponse("expected")
             .ShouldContainResponse("keywords")
             .AssertAsync();
-
-        // Assert - No exception means success
-        Assert.True(true);
     }
 
     /// <summary>
