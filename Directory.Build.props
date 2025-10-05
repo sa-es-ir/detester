@@ -1,0 +1,7 @@
+<Project>
+	<PropertyGroup>
+		<LangVersion>preview</LangVersion>
+		<Author>Saeed Esmaeelinejad</Author>
+		<NeutralLanguage>en-US</NeutralLanguage>
+	</PropertyGroup>
+</Project>
