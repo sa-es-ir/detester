@@ -136,7 +136,7 @@ public class DetesterBuilderTests
         var builder = new DetesterBuilder(mockClient);
 
         // Act & Assert
-        await Assert.ThrowsAsync<DetesterException>(() => builder.AssertAsync());
+        await Assert.ThrowsAsync<DetesterException>(() => builder.AssertAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -150,7 +150,7 @@ public class DetesterBuilderTests
         var builder = new DetesterBuilder(mockClient);
 
         // Act & Assert
-        await builder.WithPrompt("Test prompt").AssertAsync();
+        await builder.WithPrompt("Test prompt").AssertAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public class DetesterBuilderTests
         await builder
             .WithPrompt("Test prompt")
             .ShouldContainResponse("test response")
-            .AssertAsync();
+            .AssertAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -185,7 +185,7 @@ public class DetesterBuilderTests
             builder
                 .WithPrompt("Test prompt")
                 .ShouldContainResponse("missing text")
-                .AssertAsync());
+                .AssertAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -204,7 +204,7 @@ public class DetesterBuilderTests
             .WithPrompt("Second prompt")
             .ShouldContainResponse("expected")
             .ShouldContainResponse("keywords")
-            .AssertAsync();
+            .AssertAsync(TestContext.Current.CancellationToken);
     }
 
     /// <summary>
