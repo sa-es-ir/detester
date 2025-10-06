@@ -10,6 +10,7 @@ Detester is a .NET library that enables you to write deterministic tests for AI-
 
 - **Fluent Builder API**: Chain multiple prompts and assertions in a readable, intuitive way
 - **Multiple AI Provider Support**: Works with OpenAI, Azure OpenAI, and custom `IChatClient` implementations
+- **Model Instructions**: Set system messages to guide model behavior and responses
 - **Response Validation**: Assert that AI responses contain expected keywords or text
 - **Method Chaining**: Combine multiple prompts and assertions in a single test flow
 - **Extensible**: Build on Microsoft.Extensions.AI abstractions for maximum flexibility
@@ -77,6 +78,29 @@ await builder
 ```
 
 ## Advanced Usage
+
+### Setting Model Instructions
+
+Set custom instructions (system messages) to guide the model's behavior:
+
+```csharp
+await builder
+    .WithInstruction("You are a helpful assistant that provides concise answers.")
+    .WithPrompt("What is machine learning?")
+    .ShouldContainResponse("algorithm")
+    .AssertAsync();
+```
+
+Instructions are sent as system messages before any prompts, allowing you to control the model's tone, style, and behavior throughout the conversation:
+
+```csharp
+await builder
+    .WithInstruction("You are a Python expert. Always provide code examples.")
+    .WithPrompt("How do I read a file in Python?")
+    .ShouldContainResponse("open(")
+    .ShouldContainResponse("read(")
+    .AssertAsync();
+```
 
 ### Multiple Prompts
 
@@ -210,6 +234,7 @@ Set the following configuration:
 
 ### IDetesterBuilder
 
+- `WithInstruction(instruction)`: Set the instruction (system message) for the AI model
 - `WithPrompt(prompt)`: Add a single prompt
 - `WithPrompts(params prompts)`: Add multiple prompts
 - `ShouldContainResponse(expectedText)`: Assert response contains text (case-insensitive, AND condition)
