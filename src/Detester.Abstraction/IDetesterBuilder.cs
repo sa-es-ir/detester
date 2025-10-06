@@ -6,6 +6,13 @@ namespace Detester.Abstraction;
 public interface IDetesterBuilder
 {
     /// <summary>
+    /// Sets the instruction (system message) for the AI model.
+    /// </summary>
+    /// <param name="instruction">The instruction to guide the AI model's behavior.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder WithInstruction(string instruction);
+
+    /// <summary>
     /// Adds a single prompt to the test execution.
     /// </summary>
     /// <param name="prompt">The prompt to send to the AI.</param>

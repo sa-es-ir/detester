@@ -15,6 +15,127 @@ public class DetesterBuilderTests
     }
 
     [Fact]
+    public void WithInstruction_WithNullInstruction_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithInstruction(null!));
+    }
+
+    [Fact]
+    public void WithInstruction_WithEmptyInstruction_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithInstruction(string.Empty));
+    }
+
+    [Fact]
+    public void WithInstruction_WithWhitespaceInstruction_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithInstruction("   "));
+    }
+
+    [Fact]
+    public void WithInstruction_WithValidInstruction_ReturnsBuilder()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act
+        var result = builder.WithInstruction("You are a helpful assistant.");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IDetesterBuilder>(result);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithInstruction_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "This is a helpful response"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithInstruction("You are a helpful assistant.")
+            .WithPrompt("Test prompt")
+            .ShouldContainResponse("helpful")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithInstructionAndMultiplePrompts_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response following the instruction"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithInstruction("You are a helpful assistant.")
+            .WithPrompt("First prompt")
+            .WithPrompt("Second prompt")
+            .ShouldContainResponse("Response")
+            .ShouldContainResponse("instruction")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithInstructionBeforePrompts_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Instruction-based response"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithInstruction("Answer concisely.")
+            .WithPrompt("What is AI?")
+            .ShouldContainResponse("Instruction")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithoutInstruction_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Normal response"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldContainResponse("Normal")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public void WithPrompt_WithNullPrompt_ThrowsArgumentException()
     {
         // Arrange

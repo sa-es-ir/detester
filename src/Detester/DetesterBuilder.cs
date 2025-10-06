@@ -12,6 +12,7 @@ public class DetesterBuilder : IDetesterBuilder
     private readonly List<string> prompts = [];
     private readonly List<string> expectedResponses = [];
     private readonly List<List<string>> orResponseGroups = [];
+    private string? instruction;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DetesterBuilder"/> class.
@@ -21,6 +22,18 @@ public class DetesterBuilder : IDetesterBuilder
     public DetesterBuilder(IChatClient chatClient)
     {
         this.chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder WithInstruction(string instruction)
+    {
+        if (string.IsNullOrWhiteSpace(instruction))
+        {
+            throw new ArgumentException("Instruction cannot be null or whitespace.", nameof(instruction));
+        }
+
+        this.instruction = instruction;
+        return this;
     }
 
     /// <inheritdoc/>
@@ -107,6 +120,12 @@ public class DetesterBuilder : IDetesterBuilder
         }
 
         var chatHistory = new List<ChatMessage>();
+
+        // Add instruction as system message if provided
+        if (!string.IsNullOrWhiteSpace(instruction))
+        {
+            chatHistory.Add(new ChatMessage(ChatRole.System, instruction));
+        }
 
         foreach (var prompt in prompts)
         {
