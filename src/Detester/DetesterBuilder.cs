@@ -9,9 +9,9 @@ using Microsoft.Extensions.AI;
 public class DetesterBuilder : IDetesterBuilder
 {
     private readonly IChatClient chatClient;
-    private readonly List<string> prompts = new ();
-    private readonly List<string> expectedResponses = new ();
-    private readonly List<List<string>> orResponseGroups = new ();
+    private readonly List<string> prompts = [];
+    private readonly List<string> expectedResponses = [];
+    private readonly List<List<string>> orResponseGroups = [];
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DetesterBuilder"/> class.
@@ -31,7 +31,7 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentException("Prompt cannot be null or whitespace.", nameof(prompt));
         }
 
-        this.prompts.Add(prompt);
+        prompts.Add(prompt);
         return this;
     }
 
@@ -64,7 +64,7 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentException("Expected text cannot be null or whitespace.", nameof(expectedText));
         }
 
-        this.expectedResponses.Add(expectedText);
+        expectedResponses.Add(expectedText);
         return this;
     }
 
@@ -77,22 +77,22 @@ public class DetesterBuilder : IDetesterBuilder
         }
 
         // If there are no existing expectations, treat this as a new OR group
-        if (this.expectedResponses.Count == 0 && this.orResponseGroups.Count == 0)
+        if (expectedResponses.Count == 0 && orResponseGroups.Count == 0)
         {
             throw new InvalidOperationException("OrShouldContainResponse must be called after ShouldContainResponse or another OrShouldContainResponse.");
         }
 
         // If the last expectation was an AND (in expectedResponses), move it to a new OR group
-        if (this.expectedResponses.Count > 0)
+        if (expectedResponses.Count > 0)
         {
-            var lastExpectation = this.expectedResponses[this.expectedResponses.Count - 1];
-            this.expectedResponses.RemoveAt(this.expectedResponses.Count - 1);
-            this.orResponseGroups.Add(new List<string> { lastExpectation, expectedText });
+            var lastExpectation = expectedResponses[expectedResponses.Count - 1];
+            expectedResponses.RemoveAt(expectedResponses.Count - 1);
+            orResponseGroups.Add(new List<string> { lastExpectation, expectedText });
         }
         else
         {
             // Add to the last OR group
-            this.orResponseGroups[this.orResponseGroups.Count - 1].Add(expectedText);
+            orResponseGroups[orResponseGroups.Count - 1].Add(expectedText);
         }
 
         return this;
@@ -101,18 +101,18 @@ public class DetesterBuilder : IDetesterBuilder
     /// <inheritdoc/>
     public async Task AssertAsync(CancellationToken cancellationToken = default)
     {
-        if (this.prompts.Count == 0)
+        if (prompts.Count == 0)
         {
             throw new DetesterException("No prompts have been added. Use WithPrompt or WithPrompts before asserting.");
         }
 
         var chatHistory = new List<ChatMessage>();
 
-        foreach (var prompt in this.prompts)
+        foreach (var prompt in prompts)
         {
             chatHistory.Add(new ChatMessage(ChatRole.User, prompt));
 
-            var response = await this.chatClient.CompleteAsync(chatHistory, cancellationToken: cancellationToken);
+            var response = await chatClient.CompleteAsync(chatHistory, cancellationToken: cancellationToken);
 
             if (response?.Message == null)
             {
@@ -122,12 +122,12 @@ public class DetesterBuilder : IDetesterBuilder
             chatHistory.Add(response.Message);
 
             // Check if response contains expected text for any of the assertions
-            if (this.expectedResponses.Count > 0 || this.orResponseGroups.Count > 0)
+            if (expectedResponses.Count > 0 || orResponseGroups.Count > 0)
             {
                 var responseText = response.Message.Text ?? string.Empty;
 
                 // Check AND assertions
-                var missingExpectations = this.expectedResponses
+                var missingExpectations = expectedResponses
                     .Where(expected => !responseText.Contains(expected, StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
@@ -140,7 +140,7 @@ public class DetesterBuilder : IDetesterBuilder
                 }
 
                 // Check OR assertions (at least one in each OR group must match)
-                foreach (var orGroup in this.orResponseGroups)
+                foreach (var orGroup in orResponseGroups)
                 {
                     var hasMatch = orGroup.Any(expected =>
                         responseText.Contains(expected, StringComparison.OrdinalIgnoreCase));
