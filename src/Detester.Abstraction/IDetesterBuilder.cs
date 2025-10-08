@@ -13,11 +13,27 @@ public interface IDetesterBuilder
     IDetesterBuilder WithInstruction(string instruction);
 
     /// <summary>
+    /// Sets the instruction (system message) for the AI model from a file.
+    /// Accepts markdown (.md) and text (.txt) files.
+    /// </summary>
+    /// <param name="filePath">The path to the file containing the instruction.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder WithInstructionFromFile(string filePath);
+
+    /// <summary>
     /// Adds a single prompt to the test execution.
     /// </summary>
     /// <param name="prompt">The prompt to send to the AI.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IDetesterBuilder WithPrompt(string prompt);
+
+    /// <summary>
+    /// Adds a single prompt to the test execution from a file.
+    /// Accepts markdown (.md) and text (.txt) files.
+    /// </summary>
+    /// <param name="filePath">The path to the file containing the prompt.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder WithPromptFromFile(string filePath);
 
     /// <summary>
     /// Adds multiple prompts to the test execution.
