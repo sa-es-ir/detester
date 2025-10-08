@@ -37,6 +37,36 @@ public class DetesterBuilder : IDetesterBuilder
     }
 
     /// <inheritdoc/>
+    public IDetesterBuilder WithInstructionFromFile(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException("File path cannot be null or whitespace.", nameof(filePath));
+        }
+
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        if (extension != ".md" && extension != ".txt")
+        {
+            throw new ArgumentException("File must be a markdown (.md) or text (.txt) file.", nameof(filePath));
+        }
+
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"File not found: {filePath}", filePath);
+        }
+
+        var content = File.ReadAllText(filePath);
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            throw new ArgumentException("File content cannot be empty or whitespace.", nameof(filePath));
+        }
+
+        this.instruction = content;
+        return this;
+    }
+
+    /// <inheritdoc/>
     public IDetesterBuilder WithPrompt(string prompt)
     {
         if (string.IsNullOrWhiteSpace(prompt))
@@ -45,6 +75,36 @@ public class DetesterBuilder : IDetesterBuilder
         }
 
         prompts.Add(prompt);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder WithPromptFromFile(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException("File path cannot be null or whitespace.", nameof(filePath));
+        }
+
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        if (extension != ".md" && extension != ".txt")
+        {
+            throw new ArgumentException("File must be a markdown (.md) or text (.txt) file.", nameof(filePath));
+        }
+
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"File not found: {filePath}", filePath);
+        }
+
+        var content = File.ReadAllText(filePath);
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            throw new ArgumentException("File content cannot be empty or whitespace.", nameof(filePath));
+        }
+
+        prompts.Add(content);
         return this;
     }
 

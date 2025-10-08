@@ -493,4 +493,292 @@ public class DetesterBuilderTests
                 .OrShouldContainResponse("alternative")
                 .AssertAsync(TestContext.Current.CancellationToken));
     }
+
+    [Fact]
+    public void WithInstructionFromFile_WithNullFilePath_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithInstructionFromFile(null!));
+    }
+
+    [Fact]
+    public void WithInstructionFromFile_WithEmptyFilePath_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithInstructionFromFile(string.Empty));
+    }
+
+    [Fact]
+    public void WithInstructionFromFile_WithWhitespaceFilePath_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithInstructionFromFile("   "));
+    }
+
+    [Fact]
+    public void WithInstructionFromFile_WithInvalidFileType_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.WithInstructionFromFile("TestFiles/invalid.json"));
+        Assert.Contains("markdown (.md) or text (.txt)", exception.Message);
+    }
+
+    [Fact]
+    public void WithInstructionFromFile_WithNonExistentFile_ThrowsFileNotFoundException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<FileNotFoundException>(() =>
+            builder.WithInstructionFromFile("TestFiles/nonexistent.txt"));
+    }
+
+    [Fact]
+    public void WithInstructionFromFile_WithEmptyFile_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            builder.WithInstructionFromFile("TestFiles/empty.txt"));
+    }
+
+    [Fact]
+    public void WithInstructionFromFile_WithValidTxtFile_ReturnsBuilder()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act
+        var result = builder.WithInstructionFromFile("TestFiles/instruction.txt");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IDetesterBuilder>(result);
+    }
+
+    [Fact]
+    public void WithInstructionFromFile_WithValidMdFile_ReturnsBuilder()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act
+        var result = builder.WithInstructionFromFile("TestFiles/instruction.md");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IDetesterBuilder>(result);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithInstructionFromTxtFile_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "This is a helpful response"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithInstructionFromFile("TestFiles/instruction.txt")
+            .WithPrompt("Test prompt")
+            .ShouldContainResponse("helpful")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithInstructionFromMdFile_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "This is a concise response"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithInstructionFromFile("TestFiles/instruction.md")
+            .WithPrompt("Test prompt")
+            .ShouldContainResponse("concise")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public void WithPromptFromFile_WithNullFilePath_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithPromptFromFile(null!));
+    }
+
+    [Fact]
+    public void WithPromptFromFile_WithEmptyFilePath_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithPromptFromFile(string.Empty));
+    }
+
+    [Fact]
+    public void WithPromptFromFile_WithWhitespaceFilePath_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.WithPromptFromFile("   "));
+    }
+
+    [Fact]
+    public void WithPromptFromFile_WithInvalidFileType_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() =>
+            builder.WithPromptFromFile("TestFiles/invalid.json"));
+        Assert.Contains("markdown (.md) or text (.txt)", exception.Message);
+    }
+
+    [Fact]
+    public void WithPromptFromFile_WithNonExistentFile_ThrowsFileNotFoundException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<FileNotFoundException>(() =>
+            builder.WithPromptFromFile("TestFiles/nonexistent.txt"));
+    }
+
+    [Fact]
+    public void WithPromptFromFile_WithEmptyFile_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() =>
+            builder.WithPromptFromFile("TestFiles/empty.txt"));
+    }
+
+    [Fact]
+    public void WithPromptFromFile_WithValidTxtFile_ReturnsBuilder()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act
+        var result = builder.WithPromptFromFile("TestFiles/prompt.txt");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IDetesterBuilder>(result);
+    }
+
+    [Fact]
+    public void WithPromptFromFile_WithValidMdFile_ReturnsBuilder()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act
+        var result = builder.WithPromptFromFile("TestFiles/prompt.md");
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.IsAssignableFrom<IDetesterBuilder>(result);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithPromptFromTxtFile_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "The capital of France is Paris"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPromptFromFile("TestFiles/prompt.txt")
+            .ShouldContainResponse("Paris")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithPromptFromMdFile_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Quantum computing uses quantum bits"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPromptFromFile("TestFiles/prompt.md")
+            .ShouldContainResponse("quantum")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithInstructionAndPromptFromFiles_CompletesSuccessfully()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "This is a helpful and concise response"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithInstructionFromFile("TestFiles/instruction.txt")
+            .WithPromptFromFile("TestFiles/prompt.txt")
+            .ShouldContainResponse("helpful")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
 }
