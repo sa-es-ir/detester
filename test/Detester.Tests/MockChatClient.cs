@@ -11,6 +11,8 @@ public class MockChatClient : IChatClient
 {
     public string ResponseText { get; set; } = "Mock response";
 
+    public List<FunctionCallContent> FunctionCallsToReturn { get; set; } = [];
+
     public ChatClientMetadata Metadata => new ChatClientMetadata("MockClient");
 
     public Task<ChatCompletion> CompleteAsync(
@@ -18,8 +20,22 @@ public class MockChatClient : IChatClient
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
-        var response = new ChatCompletion(
-            new ChatMessage(ChatRole.Assistant, this.ResponseText));
+        var contents = new List<AIContent>();
+
+        // Add text content if ResponseText is set
+        if (!string.IsNullOrEmpty(ResponseText))
+        {
+            contents.Add(new TextContent(ResponseText));
+        }
+
+        // Add function calls
+        contents.AddRange(FunctionCallsToReturn);
+
+        var message = contents.Count > 0
+            ? new ChatMessage(ChatRole.Assistant, contents)
+            : new ChatMessage(ChatRole.Assistant, ResponseText);
+
+        var response = new ChatCompletion(message);
         return Task.FromResult(response);
     }
 

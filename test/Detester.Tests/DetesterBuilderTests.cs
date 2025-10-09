@@ -1,6 +1,7 @@
 namespace Detester.Tests;
 
 using Detester.Abstraction;
+using Microsoft.Extensions.AI;
 
 /// <summary>
 /// Tests for the DetesterBuilder class.
@@ -779,6 +780,252 @@ public class DetesterBuilderTests
             .WithInstructionFromFile("TestFiles/instruction.txt")
             .WithPromptFromFile("TestFiles/prompt.txt")
             .ShouldContainResponse("helpful")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public void ShouldCallFunction_WithNullFunctionName_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.ShouldCallFunction(null!));
+    }
+
+    [Fact]
+    public void ShouldCallFunction_WithEmptyFunctionName_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.ShouldCallFunction(string.Empty));
+    }
+
+    [Fact]
+    public void ShouldCallFunctionWithParameters_WithNullFunctionName_ThrowsArgumentException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+        var parameters = new Dictionary<string, object?> { { "key", "value" } };
+
+        // Act & Assert
+        Assert.Throws<ArgumentException>(() => builder.ShouldCallFunctionWithParameters(null!, parameters));
+    }
+
+    [Fact]
+    public void ShouldCallFunctionWithParameters_WithNullParameters_ThrowsArgumentNullException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient();
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        Assert.Throws<ArgumentNullException>(() => builder.ShouldCallFunctionWithParameters("function_name", null!));
+    }
+
+    [Fact]
+    public async Task ShouldCallFunction_WhenFunctionIsCalled_Succeeds()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = string.Empty,
+            FunctionCallsToReturn =
+            [
+                new FunctionCallContent("call-123", "get_weather", new Dictionary<string, object?> { { "location", "Paris" } })
+            ]
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("What's the weather in Paris?")
+            .ShouldCallFunction("get_weather")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ShouldCallFunction_WhenFunctionIsNotCalled_ThrowsDetesterException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "I don't know the weather",
+            FunctionCallsToReturn = []
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DetesterException>(async () =>
+            await builder
+                .WithPrompt("What's the weather in Paris?")
+                .ShouldCallFunction("get_weather")
+                .AssertAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("Expected function 'get_weather' to be called", exception.Message);
+        Assert.Contains("no function calls were made", exception.Message);
+    }
+
+    [Fact]
+    public async Task ShouldCallFunction_WhenWrongFunctionIsCalled_ThrowsDetesterException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = string.Empty,
+            FunctionCallsToReturn =
+            [
+                new FunctionCallContent("call-123", "get_temperature", new Dictionary<string, object?>())
+            ]
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DetesterException>(async () =>
+            await builder
+                .WithPrompt("What's the weather in Paris?")
+                .ShouldCallFunction("get_weather")
+                .AssertAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("Expected function 'get_weather' to be called", exception.Message);
+        Assert.Contains("get_temperature", exception.Message);
+    }
+
+    [Fact]
+    public async Task ShouldCallFunctionWithParameters_WhenParametersMatch_Succeeds()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = string.Empty,
+            FunctionCallsToReturn =
+            [
+                new FunctionCallContent("call-123", "get_weather", new Dictionary<string, object?>
+                {
+                    { "location", "Paris" },
+                    { "units", "celsius" }
+                })
+            ]
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("What's the weather in Paris in celsius?")
+            .ShouldCallFunctionWithParameters("get_weather", new Dictionary<string, object?>
+            {
+                { "location", "Paris" },
+                { "units", "celsius" }
+            })
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ShouldCallFunctionWithParameters_WhenParametersDontMatch_ThrowsDetesterException()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = string.Empty,
+            FunctionCallsToReturn =
+            [
+                new FunctionCallContent("call-123", "get_weather", new Dictionary<string, object?>
+                {
+                    { "location", "London" },
+                    { "units", "celsius" }
+                })
+            ]
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<DetesterException>(async () =>
+            await builder
+                .WithPrompt("What's the weather in Paris?")
+                .ShouldCallFunctionWithParameters("get_weather", new Dictionary<string, object?>
+                {
+                    { "location", "Paris" },
+                    { "units", "celsius" }
+                })
+                .AssertAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("Expected function 'get_weather' to be called with parameters", exception.Message);
+    }
+
+    [Fact]
+    public async Task ShouldCallFunction_WithMultipleFunctionCalls_MatchesCorrectly()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = string.Empty,
+            FunctionCallsToReturn =
+            [
+                new FunctionCallContent("call-1", "get_weather", new Dictionary<string, object?> { { "location", "Paris" } }),
+                new FunctionCallContent("call-2", "get_weather", new Dictionary<string, object?> { { "location", "London" } })
+            ]
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("What's the weather in Paris and London?")
+            .ShouldCallFunction("get_weather")
+            .ShouldCallFunction("get_weather")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ShouldCallFunction_CombinedWithTextAssertion_Succeeds()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "The weather is sunny",
+            FunctionCallsToReturn =
+            [
+                new FunctionCallContent("call-123", "get_weather", new Dictionary<string, object?> { { "location", "Paris" } })
+            ]
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("What's the weather in Paris?")
+            .ShouldCallFunction("get_weather")
+            .ShouldContainResponse("sunny")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task ShouldCallFunction_WithCaseInsensitiveStringParameters_Succeeds()
+    {
+        // Arrange
+        var mockClient = new MockChatClient
+        {
+            ResponseText = string.Empty,
+            FunctionCallsToReturn =
+            [
+                new FunctionCallContent("call-123", "get_weather", new Dictionary<string, object?>
+                {
+                    { "location", "PARIS" }
+                })
+            ]
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        // Act & Assert
+        await builder
+            .WithPrompt("What's the weather?")
+            .ShouldCallFunctionWithParameters("get_weather", new Dictionary<string, object?>
+            {
+                { "location", "paris" }
+            })
             .AssertAsync(TestContext.Current.CancellationToken);
     }
 }
