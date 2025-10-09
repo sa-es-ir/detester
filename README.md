@@ -1,3 +1,11 @@
+<p align="center"><img src="detester_logo.png" width="300"></p>
+
+<div align="center">
+
+[![NuGet](https://img.shields.io/nuget/v/Detester.svg)](https://www.nuget.org/packages/Detester/)
+[![GitHub stars](https://img.shields.io/github/stars/sa-es-ir/Detester.svg)](https://github.com/sa-es-ir/Detester/stargazers)
+</div>
+
 # Detester
 
 AI Deterministic Tester - A testing framework for building deterministic and reliable tests for AI applications.
