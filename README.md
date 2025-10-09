@@ -20,6 +20,7 @@ Detester is a .NET library that enables you to write deterministic tests for AI-
 - **Multiple AI Provider Support**: Works with OpenAI, Azure OpenAI, and custom `IChatClient` implementations
 - **Model Instructions**: Set system messages to guide model behavior and responses
 - **Response Validation**: Assert that AI responses contain expected keywords or text
+- **Function/Tool Call Verification**: Verify that AI models call the correct functions with expected parameters
 - **Method Chaining**: Combine multiple prompts and assertions in a single test flow
 - **Extensible**: Build on Microsoft.Extensions.AI abstractions for maximum flexibility
 
@@ -195,6 +196,63 @@ await builder
 
 Note: `OrShouldContainResponse` creates an OR group with the immediately preceding assertion. Each subsequent `OrShouldContainResponse` adds another alternative to that OR group.
 
+### Function/Tool Call Verification
+
+Detester supports verifying that AI models call the correct functions/tools with expected parameters. This is useful for testing AI applications that use function calling capabilities.
+
+#### Basic Function Call Verification
+
+Verify that a specific function is called:
+
+```csharp
+await builder
+    .WithPrompt("What's the weather in Paris?")
+    .ShouldCallFunction("get_weather")
+    .AssertAsync();
+```
+
+#### Verify Function Parameters
+
+Check that functions are called with the correct parameters:
+
+```csharp
+await builder
+    .WithPrompt("What's the weather in Paris in celsius?")
+    .ShouldCallFunctionWithParameters("get_weather", 
+        new Dictionary<string, object?> 
+        { 
+            { "location", "Paris" },
+            { "units", "celsius" }
+        })
+    .AssertAsync();
+```
+
+#### Multiple Function Calls
+
+Verify multiple function calls in a single response:
+
+```csharp
+await builder
+    .WithPrompt("Compare the weather in Paris and London")
+    .ShouldCallFunction("get_weather")
+    .ShouldCallFunction("get_weather")
+    .AssertAsync();
+```
+
+#### Combined Verification
+
+Combine function call verification with text response assertions:
+
+```csharp
+await builder
+    .WithPrompt("What's the capital of France?")
+    .ShouldCallFunction("get_capital")
+    .ShouldContainResponse("Paris")
+    .AssertAsync();
+```
+
+For more detailed information and examples, see the [Function Calling Guide](docs/function-calling-guide.md).
+
 ## Testing Example with xUnit
 
 ```csharp
@@ -247,6 +305,8 @@ Set the following configuration:
 - `WithPrompts(params prompts)`: Add multiple prompts
 - `ShouldContainResponse(expectedText)`: Assert response contains text (case-insensitive, AND condition)
 - `OrShouldContainResponse(expectedText)`: Assert response contains alternative text (case-insensitive, OR condition)
+- `ShouldCallFunction(functionName)`: Assert that a specific function/tool was called
+- `ShouldCallFunctionWithParameters(functionName, parameters)`: Assert that a function was called with specific parameters
 - `AssertAsync(cancellationToken)`: Assert the test by executing prompts and validating responses
 
 ## Error Handling

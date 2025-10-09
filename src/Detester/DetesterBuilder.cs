@@ -12,6 +12,7 @@ public class DetesterBuilder : IDetesterBuilder
     private readonly List<string> prompts = [];
     private readonly List<string> expectedResponses = [];
     private readonly List<List<string>> orResponseGroups = [];
+    private readonly List<FunctionCallExpectation> expectedFunctionCalls = [];
     private string? instruction;
 
     /// <summary>
@@ -172,6 +173,39 @@ public class DetesterBuilder : IDetesterBuilder
     }
 
     /// <inheritdoc/>
+    public IDetesterBuilder ShouldCallFunction(string functionName)
+    {
+        if (string.IsNullOrWhiteSpace(functionName))
+        {
+            throw new ArgumentException("Function name cannot be null or whitespace.", nameof(functionName));
+        }
+
+        expectedFunctionCalls.Add(new FunctionCallExpectation { FunctionName = functionName });
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldCallFunctionWithParameters(string functionName, IDictionary<string, object?> expectedParameters)
+    {
+        if (string.IsNullOrWhiteSpace(functionName))
+        {
+            throw new ArgumentException("Function name cannot be null or whitespace.", nameof(functionName));
+        }
+
+        if (expectedParameters == null)
+        {
+            throw new ArgumentNullException(nameof(expectedParameters));
+        }
+
+        expectedFunctionCalls.Add(new FunctionCallExpectation
+        {
+            FunctionName = functionName,
+            ExpectedParameters = expectedParameters
+        });
+        return this;
+    }
+
+    /// <inheritdoc/>
     public async Task AssertAsync(CancellationToken cancellationToken = default)
     {
         if (prompts.Count == 0)
@@ -233,6 +267,122 @@ public class DetesterBuilder : IDetesterBuilder
                     }
                 }
             }
+
+            // Check function call expectations
+            if (expectedFunctionCalls.Count > 0)
+            {
+                var functionCalls = response.Message.Contents
+                    .OfType<FunctionCallContent>()
+                    .ToList();
+
+                // Create a working copy of expectations to match
+                var remainingExpectations = new List<FunctionCallExpectation>(expectedFunctionCalls);
+
+                foreach (var expectation in expectedFunctionCalls)
+                {
+                    // Find a matching function call
+                    FunctionCallContent? matchedCall = null;
+
+                    foreach (var functionCall in functionCalls)
+                    {
+                        if (functionCall.Name == expectation.FunctionName)
+                        {
+                            // Check if parameters match (if specified)
+                            if (expectation.ExpectedParameters != null)
+                            {
+                                if (ParametersMatch(functionCall.Arguments, expectation.ExpectedParameters))
+                                {
+                                    matchedCall = functionCall;
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                // No parameter verification needed, just match by name
+                                matchedCall = functionCall;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (matchedCall == null)
+                    {
+                        // Build detailed error message
+                        if (functionCalls.Count == 0)
+                        {
+                            throw new DetesterException(
+                                $"Expected function '{expectation.FunctionName}' to be called, but no function calls were made.");
+                        }
+
+                        var actualFunctions = string.Join(", ", functionCalls.Select(f => $"'{f.Name}'"));
+
+                        if (expectation.ExpectedParameters != null)
+                        {
+                            var expectedParams = string.Join(", ", expectation.ExpectedParameters.Select(p => $"{p.Key}={p.Value}"));
+                            throw new DetesterException(
+                                $"Expected function '{expectation.FunctionName}' to be called with parameters ({expectedParams}), " +
+                                $"but it was not called with those parameters. " +
+                                $"Actual function calls: {actualFunctions}");
+                        }
+                        else
+                        {
+                            throw new DetesterException(
+                                $"Expected function '{expectation.FunctionName}' to be called, " +
+                                $"but only these functions were called: {actualFunctions}");
+                        }
+                    }
+
+                    // Remove the matched call so it won't be matched again
+                    functionCalls.Remove(matchedCall);
+                }
+            }
         }
+    }
+
+    private static bool ParametersMatch(IDictionary<string, object?>? actual, IDictionary<string, object?> expected)
+    {
+        if (actual == null)
+        {
+            return expected.Count == 0;
+        }
+
+        // Check if all expected parameters are present and have matching values
+        foreach (var expectedParam in expected)
+        {
+            if (!actual.TryGetValue(expectedParam.Key, out var actualValue))
+            {
+                return false;
+            }
+
+            // Compare values
+            if (!ValuesEqual(actualValue, expectedParam.Value))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ValuesEqual(object? actual, object? expected)
+    {
+        if (actual == null && expected == null)
+        {
+            return true;
+        }
+
+        if (actual == null || expected == null)
+        {
+            return false;
+        }
+
+        // Handle string comparison case-insensitively
+        if (actual is string actualStr && expected is string expectedStr)
+        {
+            return actualStr.Equals(expectedStr, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // For other types, use standard equality
+        return actual.Equals(expected);
     }
 }

@@ -58,6 +58,21 @@ public interface IDetesterBuilder
     IDetesterBuilder OrShouldContainResponse(string expectedText);
 
     /// <summary>
+    /// Asserts that the AI model called the specified function/tool.
+    /// </summary>
+    /// <param name="functionName">The name of the function that should have been called.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldCallFunction(string functionName);
+
+    /// <summary>
+    /// Asserts that the AI model called the specified function/tool with the expected parameters.
+    /// </summary>
+    /// <param name="functionName">The name of the function that should have been called.</param>
+    /// <param name="expectedParameters">The expected parameters that should have been passed to the function.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldCallFunctionWithParameters(string functionName, IDictionary<string, object?> expectedParameters);
+
+    /// <summary>
     /// Asserts the test asynchronously by executing the configured prompts and validating responses.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
