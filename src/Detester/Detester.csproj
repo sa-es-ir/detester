@@ -9,7 +9,7 @@
 
         <!-- NuGet Package Metadata -->
         <PackageId>Detester</PackageId>
-        <Version>1.0.0-preview.3</Version>
+        <Version>1.0.0-preview.4</Version>
         <Authors>Saeed Esmaeelinejad</Authors>
         <Company>Detester</Company>
         <Description>A testing framework for building deterministic and reliable tests for AI applications. Provides a fluent builder API for testing AI responses with support for OpenAI, Azure OpenAI, and custom chat clients.</Description>
