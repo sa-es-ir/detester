@@ -301,7 +301,7 @@ The project uses semantic versioning (SemVer). Current version is tracked via gi
 ## File Organization
 
 ```
-/home/runner/work/detester/detester/
+detester/                             - Project root
 ├── .github/
 │   ├── copilot-instructions.md     - This file
 │   └── workflows/
