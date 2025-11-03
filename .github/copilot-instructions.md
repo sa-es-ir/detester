@@ -170,3 +170,152 @@ await builder
 - All prompts must be provided before calling AssertAsync
 - Method chaining is a core feature - maintain it in all builder methods
 - The library should work with any IChatClient implementation
+
+## CI/CD and Workflows
+
+### Continuous Integration
+
+The project uses GitHub Actions for CI. The workflow is defined in `.github/workflows/ci.yml` and runs on:
+- Push to `main` branch
+- Pull requests to `main` branch
+
+The CI pipeline:
+1. Checks out code
+2. Sets up .NET 8 and .NET 9 SDKs
+3. Restores dependencies with `dotnet restore`
+4. Builds with `dotnet build --no-restore`
+5. Runs tests with `dotnet test --no-build --verbosity normal`
+
+### Running CI Locally
+
+To replicate CI locally:
+```bash
+dotnet restore
+dotnet build --no-restore
+dotnet test --no-build --verbosity normal
+```
+
+## Security Best Practices
+
+### API Keys and Secrets
+
+- Never commit API keys or secrets to the repository
+- Use environment variables for sensitive data (e.g., `OPENAI_API_KEY`, `AZURE_OPENAI_API_KEY`)
+- In tests, use `Environment.GetEnvironmentVariable()` to access keys
+- For local development, use user secrets or `.env` files (add to `.gitignore`)
+- Document required environment variables in test files or README
+
+### Secure Testing
+
+- Mock external API calls in unit tests when possible
+- Integration tests requiring real API keys should be clearly marked
+- Consider using test API keys with limited scope for integration tests
+
+## Troubleshooting
+
+### Common Issues
+
+**Build Failures:**
+- Ensure you have both .NET 8 and .NET 9 SDKs installed
+- Run `dotnet restore` before building
+- Check StyleCop warnings - they may indicate code style issues
+
+**Test Failures:**
+- Verify API keys are set correctly in environment variables
+- Check network connectivity for tests that make real API calls
+- Review test output for specific assertion failures
+
+**StyleCop Warnings:**
+- XML documentation is required for all public APIs
+- Follow C# naming conventions strictly
+- Check `stylecop.json` for configured rules
+
+**Dependency Issues:**
+- Run `dotnet restore` to update packages
+- Check for version conflicts in `.csproj` files
+- Ensure Microsoft.Extensions.AI version compatibility
+
+### Debug Tips
+
+- Use `dotnet test --logger "console;verbosity=detailed"` for detailed test output
+- Enable debug logging in tests with appropriate verbosity
+- Use breakpoints in test methods to inspect builder state
+- Review actual vs expected responses in assertion failures
+
+## Quick Reference Commands
+
+### Development
+```bash
+# Restore packages
+dotnet restore
+
+# Build solution
+dotnet build
+
+# Build in Release mode
+dotnet build -c Release
+
+# Run all tests
+dotnet test
+
+# Run tests with detailed output
+dotnet test --logger "console;verbosity=detailed"
+
+# Run specific test
+dotnet test --filter "FullyQualifiedName~TestMethodName"
+```
+
+### Code Quality
+```bash
+# Build with warnings as errors (CI simulation)
+dotnet build /p:TreatWarningsAsErrors=true
+
+# Clean build artifacts
+dotnet clean
+
+# Format code (if formatter is configured)
+dotnet format
+```
+
+### Package Management
+```bash
+# Add package to specific project
+dotnet add src/Detester/Detester.csproj package PackageName
+
+# Update package
+dotnet add package PackageName
+
+# List packages
+dotnet list package
+```
+
+## Release Process
+
+The project uses semantic versioning (SemVer). Current version is tracked via git tags.
+
+- Stable 1.0.0 release is planned after .NET 10 LTS
+- Preview versions follow the pattern: `v1.0.0-preview.X`
+- Always update version numbers in `.csproj` files before release
+- Tag releases with `git tag -a vX.Y.Z -m "Release version X.Y.Z"`
+
+## File Organization
+
+```
+detester/                             - Project root
+├── .github/
+│   ├── copilot-instructions.md     - This file
+│   └── workflows/
+│       └── ci.yml                   - CI/CD pipeline
+├── src/
+│   ├── Detester/                    - Main implementation
+│   └── Detester.Abstraction/        - Interfaces and abstractions
+├── test/
+│   └── Detester.Tests/              - Unit and integration tests
+├── docs/
+│   └── function-calling-guide.md    - Function calling documentation
+├── Detester.sln                     - Solution file
+├── Directory.Build.props            - Shared MSBuild properties
+├── Directory.Build.targets          - Shared MSBuild targets
+├── stylecop.json                    - StyleCop configuration
+└── README.md                        - Main documentation
+```
