@@ -331,7 +331,7 @@ public class DetesterBuilderJsonTests
     }
 
     [Fact]
-    public async Task AssertAsync_WithJsonInCodeBlock_Succeeds()
+    public async Task AssertAsync_WithJsonInCodeBlock_ThrowsDetesterException()
     {
         // Arrange
         var mockClient = new MockChatClient
