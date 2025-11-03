@@ -373,7 +373,16 @@ public class DetesterBuilder : IDetesterBuilder
                         // If a validator is provided, invoke it
                         if (expectation.Validator != null)
                         {
-                            var validationResult = (bool)expectation.Validator.DynamicInvoke(deserializedObject) !;
+                            var result = expectation.Validator.DynamicInvoke(deserializedObject);
+                            if (result == null)
+                            {
+                                throw new DetesterException(
+                                    $"JSON response validation returned null for type '{expectation.TargetType.Name}'. " +
+                                    $"The validation predicate must return a boolean value. " +
+                                    $"Response: {responseText}");
+                            }
+
+                            var validationResult = (bool)result;
                             if (!validationResult)
                             {
                                 throw new DetesterException(
