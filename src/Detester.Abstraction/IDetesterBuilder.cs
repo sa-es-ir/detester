@@ -73,6 +73,16 @@ public interface IDetesterBuilder
     IDetesterBuilder ShouldCallFunctionWithParameters(string functionName, IDictionary<string, object?> expectedParameters);
 
     /// <summary>
+    /// Asserts that the AI response contains valid JSON that can be deserialized to the specified type.
+    /// Optionally validates the deserialized object using a predicate function.
+    /// </summary>
+    /// <typeparam name="T">The type to deserialize the JSON response into.</typeparam>
+    /// <param name="options">JSON serializer options to use for deserialization. If null, default options are used.</param>
+    /// <param name="validator">Optional predicate to validate the deserialized object. Returns true if validation passes.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldHaveJsonOfType<T>(System.Text.Json.JsonSerializerOptions? options = null, Func<T, bool>? validator = null);
+
+    /// <summary>
     /// Asserts the test asynchronously by executing the configured prompts and validating responses.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
