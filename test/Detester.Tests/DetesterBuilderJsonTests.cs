@@ -10,26 +10,6 @@ using Detester.Abstraction;
 /// </summary>
 public class DetesterBuilderJsonTests
 {
-    private class User
-    {
-        public string? FirstName { get; set; }
-
-        public string? LastName { get; set; }
-
-        public int Age { get; set; }
-
-        public DateTime JoinDate { get; set; }
-    }
-
-    private class Product
-    {
-        public string? Name { get; set; }
-
-        public decimal Price { get; set; }
-
-        public bool InStock { get; set; }
-    }
-
     [Fact]
     public void ShouldHaveJsonOfType_WithNullOptions_ReturnsBuilder()
     {
@@ -379,5 +359,31 @@ public class DetesterBuilderJsonTests
                 .AssertAsync(TestContext.Current.CancellationToken));
 
         Assert.Contains("Failed to deserialize", exception.Message);
+    }
+
+    /// <summary>
+    /// User class for testing JSON deserialization.
+    /// </summary>
+    private class User
+    {
+        public string? FirstName { get; set; }
+
+        public string? LastName { get; set; }
+
+        public int Age { get; set; }
+
+        public DateTime JoinDate { get; set; }
+    }
+
+    /// <summary>
+    /// Product class for testing JSON deserialization.
+    /// </summary>
+    private class Product
+    {
+        public string? Name { get; set; }
+
+        public decimal Price { get; set; }
+
+        public bool InStock { get; set; }
     }
 }
