@@ -2,6 +2,7 @@ namespace Detester;
 
 using Detester.Abstraction;
 using Microsoft.Extensions.AI;
+using System.Text.Json;
 
 /// <summary>
 /// Builder class for creating deterministic AI tests.
@@ -13,6 +14,7 @@ public class DetesterBuilder : IDetesterBuilder
     private readonly List<string> expectedResponses = [];
     private readonly List<List<string>> orResponseGroups = [];
     private readonly List<FunctionCallExpectation> expectedFunctionCalls = [];
+    private readonly List<JsonExpectation> jsonExpectations = [];
     private string? instruction;
 
     /// <summary>
@@ -206,6 +208,18 @@ public class DetesterBuilder : IDetesterBuilder
     }
 
     /// <inheritdoc/>
+    public IDetesterBuilder ShouldHaveJsonOfType<T>(JsonSerializerOptions? options = null, Func<T, bool>? validator = null)
+    {
+        jsonExpectations.Add(new JsonExpectation
+        {
+            TargetType = typeof(T),
+            Options = options,
+            Validator = validator
+        });
+        return this;
+    }
+
+    /// <inheritdoc/>
     public async Task AssertAsync(CancellationToken cancellationToken = default)
     {
         if (prompts.Count == 0)
@@ -334,6 +348,56 @@ public class DetesterBuilder : IDetesterBuilder
 
                     // Remove the matched call so it won't be matched again
                     functionCalls.Remove(matchedCall);
+                }
+            }
+
+            // Check JSON expectations
+            if (jsonExpectations.Count > 0)
+            {
+                var responseText = response.Message.Text ?? string.Empty;
+
+                foreach (var expectation in jsonExpectations)
+                {
+                    try
+                    {
+                        // Attempt to deserialize the response text as JSON
+                        var deserializedObject = JsonSerializer.Deserialize(responseText, expectation.TargetType, expectation.Options);
+
+                        if (deserializedObject == null)
+                        {
+                            throw new DetesterException(
+                                $"Failed to deserialize JSON response to type '{expectation.TargetType.Name}': " +
+                                $"Deserialization resulted in null. Response: {responseText}");
+                        }
+
+                        // If a validator is provided, invoke it
+                        if (expectation.Validator != null)
+                        {
+                            var result = expectation.Validator.DynamicInvoke(deserializedObject);
+                            if (result == null)
+                            {
+                                throw new DetesterException(
+                                    $"JSON response validation returned null for type '{expectation.TargetType.Name}'. " +
+                                    $"The validation predicate must return a boolean value. " +
+                                    $"Response: {responseText}");
+                            }
+
+                            var validationResult = (bool)result;
+                            if (!validationResult)
+                            {
+                                throw new DetesterException(
+                                    $"JSON response validation failed for type '{expectation.TargetType.Name}'. " +
+                                    $"The deserialized object did not pass the validation predicate. " +
+                                    $"Response: {responseText}");
+                            }
+                        }
+                    }
+                    catch (JsonException ex)
+                    {
+                        throw new DetesterException(
+                            $"Failed to deserialize JSON response to type '{expectation.TargetType.Name}': {ex.Message}. " +
+                            $"Response: {responseText}", ex);
+                    }
                 }
             }
         }

@@ -23,6 +23,7 @@ Detester is a .NET library that enables you to write deterministic tests for AI-
 - **Model Instructions**: Set system messages to guide model behavior and responses
 - **Response Validation**: Assert that AI responses contain expected keywords or text
 - **Function/Tool Call Verification**: Verify that AI models call the correct functions with expected parameters
+- **JSON Response Validation**: Deserialize and validate JSON responses from AI models with type-safe validation
 - **Method Chaining**: Combine multiple prompts and assertions in a single test flow
 - **Extensible**: Build on Microsoft.Extensions.AI abstractions for maximum flexibility
 
@@ -255,6 +256,65 @@ await builder
 
 For more detailed information and examples, see the [Function Calling Guide](docs/function-calling-guide.md).
 
+### JSON Response Validation
+
+Detester supports validating JSON responses from AI models by deserializing them to C# types and optionally validating the deserialized objects. This is useful for testing structured outputs from language models.
+
+#### Basic JSON Validation
+
+Verify that the response can be deserialized to a specific type:
+
+```csharp
+public class User
+{
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public int Age { get; set; }
+    public DateTime JoinDate { get; set; }
+}
+
+await builder
+    .WithPrompt("Who is the last user joined?")
+    .ShouldHaveJsonOfType<User>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+    .AssertAsync();
+```
+
+#### JSON Validation with Custom Validation
+
+Add custom validation logic to verify the deserialized object:
+
+```csharp
+await builder
+    .WithPrompt("Who is the last user joined?")
+    .ShouldHaveJsonOfType<User>(
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+        user => user.Age > 30 && user.FirstName!.Contains("Jo"))
+    .AssertAsync();
+```
+
+#### Complex JSON Validation
+
+Combine multiple validations:
+
+```csharp
+await builder
+    .WithPrompt("Get user details")
+    .ShouldContainResponse("Joe")  // Text assertion
+    .ShouldHaveJsonOfType<User>(
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+        user => user.Age > 18)  // JSON validation
+    .ShouldHaveJsonOfType<User>(
+        new JsonSerializerOptions { PropertyNameCaseInsensitive = true },
+        user => user.LastName == "Doe")  // Additional JSON validation
+    .AssertAsync();
+```
+
+**Note:** 
+- The JSON validation uses `System.Text.Json` for deserialization
+- Deserialization exceptions are caught and wrapped in `DetesterException` with helpful error messages
+- If validation fails, the test throws `DetesterException` with details about what went wrong
+- For case-insensitive property name matching, use `JsonSerializerOptions { PropertyNameCaseInsensitive = true }`
+
 ## Testing Example with xUnit
 
 ```csharp
@@ -309,6 +369,7 @@ Set the following configuration:
 - `OrShouldContainResponse(expectedText)`: Assert response contains alternative text (case-insensitive, OR condition)
 - `ShouldCallFunction(functionName)`: Assert that a specific function/tool was called
 - `ShouldCallFunctionWithParameters(functionName, parameters)`: Assert that a function was called with specific parameters
+- `ShouldHaveJsonOfType<T>(options, validator)`: Assert that response contains valid JSON deserializable to type T, with optional validation
 - `AssertAsync(cancellationToken)`: Assert the test by executing prompts and validating responses
 
 ## Error Handling
