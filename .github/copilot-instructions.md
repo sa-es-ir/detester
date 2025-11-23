@@ -37,7 +37,8 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 - Use `[Fact]` for simple tests, `[Theory]` with `[InlineData]` for parameterized tests
 - Follow Arrange-Act-Assert pattern
 - Mock external dependencies (use `MockChatClient` for IChatClient)
-- Test both success and failure scenarios
+- Test both success and failure scenarios,
+- Never use comments Arrange, Act, Assert in tests; structure code accordingly
 
 ## Project Structure
 

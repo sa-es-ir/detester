@@ -15,46 +15,44 @@ public class MockChatClient : IChatClient
 
     public ChatClientMetadata Metadata => new ChatClientMetadata("MockClient");
 
-    public Task<ChatCompletion> CompleteAsync(
-        IList<ChatMessage> chatMessages,
+    public Task<ChatResponse> GetResponseAsync(
+        IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         var contents = new List<AIContent>();
 
-        // Add text content if ResponseText is set
         if (!string.IsNullOrEmpty(ResponseText))
         {
             contents.Add(new TextContent(ResponseText));
         }
 
-        // Add function calls
         contents.AddRange(FunctionCallsToReturn);
 
-        var message = contents.Count > 0
+        var assistantMessage = contents.Count > 0
             ? new ChatMessage(ChatRole.Assistant, contents)
             : new ChatMessage(ChatRole.Assistant, ResponseText);
 
-        var response = new ChatCompletion(message);
+        // Return a ChatResponse containing the single assistant message.
+        var response = new ChatResponse([assistantMessage]);
         return Task.FromResult(response);
     }
 
-    public IAsyncEnumerable<StreamingChatCompletionUpdate> CompleteStreamingAsync(
-        IList<ChatMessage> chatMessages,
+    public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
+        IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
         throw new NotImplementedException();
     }
 
-    public TService? GetService<TService>(object? key = null)
-        where TService : class
+    public object? GetService(Type serviceType, object? serviceKey = null)
     {
-        return null;
-    }
+        if (serviceType == typeof(ChatClientMetadata))
+        {
+            return Metadata;
+        }
 
-    public object? GetService(Type serviceType, object? key = null)
-    {
         return null;
     }
 
