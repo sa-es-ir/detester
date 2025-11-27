@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFrameworks>net8.0;net9.0</TargetFrameworks>
+        <TargetFrameworks>net10.0</TargetFrameworks>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -9,7 +9,7 @@
 
         <!-- NuGet Package Metadata -->
         <PackageId>Detester</PackageId>
-        <Version>1.0.0-preview.4</Version>
+        <Version>1.0.0</Version>
         <Authors>Saeed Esmaeelinejad</Authors>
         <Company>Detester</Company>
         <Description>A testing framework for building deterministic and reliable tests for AI applications. Provides a fluent builder API for testing AI responses with support for OpenAI, Azure OpenAI, and custom chat clients.</Description>
@@ -27,9 +27,9 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
-        <PackageReference Include="Microsoft.Extensions.AI" Version="9.1.0-preview.1.25064.3" />
-        <PackageReference Include="Microsoft.Extensions.AI.OpenAI" Version="9.1.0-preview.1.25064.3" />
+        <PackageReference Include="Azure.AI.OpenAI" />
+        <PackageReference Include="Microsoft.Extensions.AI" />
+        <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     </ItemGroup>
 
     <ItemGroup>

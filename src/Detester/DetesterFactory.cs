@@ -1,10 +1,10 @@
 namespace Detester;
 
-using System.ClientModel;
 using Azure.AI.OpenAI;
 using Detester.Abstraction;
 using Microsoft.Extensions.AI;
 using OpenAI;
+using System.ClientModel;
 
 /// <summary>
 /// Factory class for creating DetesterBuilder instances with configured AI clients.
@@ -31,9 +31,9 @@ public static class DetesterFactory
         }
 
         var openAIClient = new OpenAIClient(new ApiKeyCredential(apiKey));
-        var chatClient = openAIClient.AsChatClient(modelName);
+        var chatClient = openAIClient.GetChatClient(modelName);
 
-        return new DetesterBuilder(chatClient);
+        return new DetesterBuilder(chatClient.AsIChatClient());
     }
 
     /// <summary>
@@ -62,9 +62,9 @@ public static class DetesterFactory
         }
 
         var azureOpenAIClient = new AzureOpenAIClient(new Uri(endpoint), new ApiKeyCredential(apiKey));
-        var chatClient = azureOpenAIClient.AsChatClient(deploymentName);
+        var chatClient = azureOpenAIClient.GetChatClient(deploymentName);
 
-        return new DetesterBuilder(chatClient);
+        return new DetesterBuilder(chatClient.AsIChatClient());
     }
 
     /// <summary>

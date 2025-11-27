@@ -239,19 +239,19 @@ public class DetesterBuilder : IDetesterBuilder
         {
             chatHistory.Add(new ChatMessage(ChatRole.User, prompt));
 
-            var response = await chatClient.CompleteAsync(chatHistory, cancellationToken: cancellationToken);
+            var response = await chatClient.GetResponseAsync(chatHistory, cancellationToken: cancellationToken);
 
-            if (response?.Message == null)
+            if (response?.Text == null)
             {
                 throw new DetesterException($"Received null response for prompt: {prompt}");
             }
 
-            chatHistory.Add(response.Message);
+            chatHistory.Add(new ChatMessage(ChatRole.Assistant, response.Text));
 
             // Check if response contains expected text for any of the assertions
             if (expectedResponses.Count > 0 || orResponseGroups.Count > 0)
             {
-                var responseText = response.Message.Text ?? string.Empty;
+                var responseText = response.Text ?? string.Empty;
 
                 // Check AND assertions
                 var missingExpectations = expectedResponses
@@ -285,23 +285,20 @@ public class DetesterBuilder : IDetesterBuilder
             // Check function call expectations
             if (expectedFunctionCalls.Count > 0)
             {
-                var functionCalls = response.Message.Contents
-                    .OfType<FunctionCallContent>()
+                // Extract function calls from assistant messages in the ChatResponse
+                var functionCalls = response.Messages
+                    .Where(m => m.Role == ChatRole.Assistant)
+                    .SelectMany(m => m.Contents.OfType<FunctionCallContent>())
                     .ToList();
-
-                // Create a working copy of expectations to match
-                var remainingExpectations = new List<FunctionCallExpectation>(expectedFunctionCalls);
 
                 foreach (var expectation in expectedFunctionCalls)
                 {
-                    // Find a matching function call
                     FunctionCallContent? matchedCall = null;
 
                     foreach (var functionCall in functionCalls)
                     {
                         if (functionCall.Name == expectation.FunctionName)
                         {
-                            // Check if parameters match (if specified)
                             if (expectation.ExpectedParameters != null)
                             {
                                 if (ParametersMatch(functionCall.Arguments, expectation.ExpectedParameters))
@@ -312,7 +309,6 @@ public class DetesterBuilder : IDetesterBuilder
                             }
                             else
                             {
-                                // No parameter verification needed, just match by name
                                 matchedCall = functionCall;
                                 break;
                             }
@@ -321,7 +317,6 @@ public class DetesterBuilder : IDetesterBuilder
 
                     if (matchedCall == null)
                     {
-                        // Build detailed error message
                         if (functionCalls.Count == 0)
                         {
                             throw new DetesterException(
@@ -334,19 +329,15 @@ public class DetesterBuilder : IDetesterBuilder
                         {
                             var expectedParams = string.Join(", ", expectation.ExpectedParameters.Select(p => $"{p.Key}={p.Value}"));
                             throw new DetesterException(
-                                $"Expected function '{expectation.FunctionName}' to be called with parameters ({expectedParams}), " +
-                                $"but it was not called with those parameters. " +
-                                $"Actual function calls: {actualFunctions}");
+                                $"Expected function '{expectation.FunctionName}' to be called with parameters ({expectedParams}), but it was not called with those parameters. Actual function calls: {actualFunctions}");
                         }
                         else
                         {
                             throw new DetesterException(
-                                $"Expected function '{expectation.FunctionName}' to be called, " +
-                                $"but only these functions were called: {actualFunctions}");
+                                $"Expected function '{expectation.FunctionName}' to be called, but only these functions were called: {actualFunctions}");
                         }
                     }
 
-                    // Remove the matched call so it won't be matched again
                     functionCalls.Remove(matchedCall);
                 }
             }
@@ -354,7 +345,7 @@ public class DetesterBuilder : IDetesterBuilder
             // Check JSON expectations
             if (jsonExpectations.Count > 0)
             {
-                var responseText = response.Message.Text ?? string.Empty;
+                var responseText = response.Text ?? string.Empty;
 
                 foreach (var expectation in jsonExpectations)
                 {

@@ -6,7 +6,7 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 
 ## Core Technologies
 
-- **.NET 9.0**: Target framework
+- **.NET 10.0**: Current target framework
 - **Microsoft.Extensions.AI**: Core abstraction for AI integrations
 - **OpenAI SDK**: For OpenAI integration
 - **Azure.AI.OpenAI**: For Azure OpenAI integration
@@ -22,6 +22,7 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 - Follow StyleCop rules configured in `stylecop.json`
 - Use nullable reference types appropriately
 - Prefer explicit over implicit typing for clarity
+- Use modern language features only when they improve clarity (avoid novelty for its own sake)
 
 ### API Design
 
@@ -30,14 +31,16 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 - Use `ArgumentNullException` for null reference parameters
 - Use `ArgumentException` for invalid parameter values
 - Throw `DetesterException` for domain-specific errors
+- Avoid exposing mutable internal collections
 
 ### Testing
 
 - Write comprehensive unit tests using xUnit
 - Use `[Fact]` for simple tests, `[Theory]` with `[InlineData]` for parameterized tests
-- Follow Arrange-Act-Assert pattern
-- Mock external dependencies (use `MockChatClient` for IChatClient)
+- Follow Arrange-Act-Assert pattern (without comments; structure code accordingly)
+- Mock external dependencies (use `MockChatClient` for `IChatClient`)
 - Test both success and failure scenarios
+- Prefer deterministic test data; avoid reliance on network unless explicitly integration
 
 ## Project Structure
 
@@ -46,7 +49,7 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
   /Detester                    - Main library with implementations
   /Detester.Abstraction        - Interfaces and base types
 /test
-  /Detester.Tests             - Unit tests
+  /Detester.Tests              - Unit tests
 ```
 
 ## Key Classes and Interfaces
@@ -83,6 +86,7 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 4. Add factory methods if needed
 5. Write comprehensive tests
 6. Update README.md with examples
+7. Maintain backward compatibility of fluent chains
 
 ### When Fixing Bugs
 
@@ -90,6 +94,7 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 2. Fix the implementation
 3. Ensure all existing tests still pass
 4. Update documentation if needed
+5. Add regression test coverage
 
 ### Building and Testing
 
@@ -138,7 +143,8 @@ public IDetesterBuilder MethodName(string paramName)
 
 - Keep dependencies minimal and up to date
 - Only add new dependencies when absolutely necessary
-- Prefer Microsoft.Extensions.AI abstractions over direct SDK usage when possible
+- Prefer `Microsoft.Extensions.AI` abstractions over direct SDK usage when possible
+- Review dependency licensing before inclusion
 
 ## Documentation
 
@@ -167,9 +173,10 @@ await builder
 ## Important Notes
 
 - Response matching is case-insensitive
-- All prompts must be provided before calling AssertAsync
+- All prompts must be provided before calling `AssertAsync`
 - Method chaining is a core feature - maintain it in all builder methods
-- The library should work with any IChatClient implementation
+- The library should work with any `IChatClient` implementation
+- Avoid hidden side effects; builder methods should only mutate builder state predictably
 
 ## CI/CD and Workflows
 
@@ -181,10 +188,11 @@ The project uses GitHub Actions for CI. The workflow is defined in `.github/work
 
 The CI pipeline:
 1. Checks out code
-2. Sets up .NET 8 and .NET 9 SDKs
+2. Sets up .NET 10 SDK
 3. Restores dependencies with `dotnet restore`
 4. Builds with `dotnet build --no-restore`
 5. Runs tests with `dotnet test --no-build --verbosity normal`
+6. (Optional) Packs on release branches
 
 ### Running CI Locally
 
@@ -216,7 +224,7 @@ dotnet test --no-build --verbosity normal
 ### Common Issues
 
 **Build Failures:**
-- Ensure you have both .NET 8 and .NET 9 SDKs installed
+- Ensure you have .NET 10 SDK installed
 - Run `dotnet restore` before building
 - Check StyleCop warnings - they may indicate code style issues
 
@@ -233,7 +241,7 @@ dotnet test --no-build --verbosity normal
 **Dependency Issues:**
 - Run `dotnet restore` to update packages
 - Check for version conflicts in `.csproj` files
-- Ensure Microsoft.Extensions.AI version compatibility
+- Ensure `Microsoft.Extensions.AI` version compatibility
 
 ### Debug Tips
 
@@ -293,29 +301,29 @@ dotnet list package
 
 The project uses semantic versioning (SemVer). Current version is tracked via git tags.
 
-- Stable 1.0.0 release is planned after .NET 10 LTS
+- Stable 1.0.0 release aligns with .NET 10 LTS timeframe
 - Preview versions follow the pattern: `v1.0.0-preview.X`
 - Always update version numbers in `.csproj` files before release
 - Tag releases with `git tag -a vX.Y.Z -m "Release version X.Y.Z"`
+- Consider generating NuGet package via `dotnet pack` in CI for tagged releases
 
 ## File Organization
 
 ```
 detester/                             - Project root
 ├── .github/
-│   ├── copilot-instructions.md     - This file
+│   ├── copilot-instructions.md       - This file
 │   └── workflows/
-│       └── ci.yml                   - CI/CD pipeline
+│       └── ci.yml                    - CI/CD pipeline
 ├── src/
-│   ├── Detester/                    - Main implementation
-│   └── Detester.Abstraction/        - Interfaces and abstractions
+│   ├── Detester/                     - Main implementation
+│   └── Detester.Abstraction/         - Interfaces and abstractions
 ├── test/
-│   └── Detester.Tests/              - Unit and integration tests
+│   └── Detester.Tests/               - Unit and integration tests
 ├── docs/
-│   └── function-calling-guide.md    - Function calling documentation
-├── Detester.sln                     - Solution file
-├── Directory.Build.props            - Shared MSBuild properties
-├── Directory.Build.targets          - Shared MSBuild targets
-├── stylecop.json                    - StyleCop configuration
-└── README.md                        - Main documentation
-```
+│   └── function-calling-guide.md     - Function calling documentation
+├── Detester.sln                      - Solution file
+├── Directory.Build.props             - Shared MSBuild properties
+├── Directory.Build.targets           - Shared MSBuild targets
+├── stylecop.json                     - StyleCop configuration
+└── README.md                         - Main documentation
