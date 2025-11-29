@@ -53,12 +53,14 @@ Detester intercepts the AI model's response and verifies that:
 ```csharp
 using Detester;
 using Detester.Abstraction;
+using Microsoft.Extensions.AI;
 
-// Create a builder with your chat client
-var builder = DetesterFactory.CreateWithOpenAI(apiKey, modelName);
+// Create your chat client (e.g., using OpenAI)
+// var openAIClient = new OpenAIClient("your-api-key");
+// var chatClient = openAIClient.GetChatClient("gpt-4").AsIChatClient();
 
-// Or use a custom client
-var builder = DetesterFactory.Create(customChatClient);
+// Create a builder with the chat client
+var builder = DetesterFactory.Create(chatClient);
 ```
 
 ## API Reference
@@ -134,7 +136,9 @@ Verify that a simple function is called:
 [Fact]
 public async Task TestWeatherFunctionCall()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    // Setup your chat client
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("What's the weather in Paris?")
@@ -151,7 +155,8 @@ Ensure the function is called with specific parameters:
 [Fact]
 public async Task TestWeatherFunctionWithLocation()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("What's the weather in Paris in celsius?")
@@ -173,7 +178,8 @@ Verify multiple functions are called:
 [Fact]
 public async Task TestMultipleCityWeatherCalls()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("Compare the weather in Paris and London")
@@ -191,7 +197,8 @@ Verify different functions are called:
 [Fact]
 public async Task TestWeatherAndTimezoneFunctions()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("What's the weather and timezone in Tokyo?")
@@ -209,7 +216,8 @@ Verify both function calls and response content:
 [Fact]
 public async Task TestFunctionCallAndResponse()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("What's the capital of France?")
@@ -227,7 +235,8 @@ Use system instructions to guide function calling:
 [Fact]
 public async Task TestWithInstructions()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithInstruction("Always use the get_weather function to retrieve weather data.")
@@ -246,7 +255,8 @@ Test conversational flows with function calls:
 [Fact]
 public async Task TestConversationalFunctionCalls()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("What's the weather in Paris?")
@@ -265,7 +275,8 @@ Verify functions with numeric parameters:
 [Fact]
 public async Task TestNumericParameters()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("Calculate 15% tip on $50")
@@ -287,7 +298,8 @@ Verify functions with boolean parameters:
 [Fact]
 public async Task TestBooleanParameters()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("Search for flights to Paris with direct flights only")
@@ -309,7 +321,8 @@ Verify functions with optional null parameters:
 [Fact]
 public async Task TestNullParameters()
 {
-    var builder = DetesterFactory.CreateWithOpenAI(apiKey, "gpt-4");
+    var chatClient = // your IChatClient implementation
+    var builder = DetesterFactory.Create(chatClient);
     
     await builder
         .WithPrompt("Get user profile")

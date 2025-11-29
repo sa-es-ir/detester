@@ -12,8 +12,8 @@
         <Version>1.0.0</Version>
         <Authors>Saeed Esmaeelinejad</Authors>
         <Company>Detester</Company>
-        <Description>A testing framework for building deterministic and reliable tests for AI applications. Provides a fluent builder API for testing AI responses with support for OpenAI, Azure OpenAI, and custom chat clients.</Description>
-        <PackageTags>ai;testing;deterministic;openai;azure-openai;chatgpt;gpt;llm;machine-learning;test-framework</PackageTags>
+        <Description>A testing framework for building deterministic and reliable tests for AI applications. Provides a fluent builder API for testing AI responses with support for any IChatClient implementation (OpenAI, Azure OpenAI, Ollama, and more).</Description>
+        <PackageTags>ai;testing;deterministic;ichatclient;chatgpt;gpt;llm;machine-learning;test-framework</PackageTags>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
         <PackageProjectUrl>https://github.com/sa-es-ir/detester</PackageProjectUrl>
         <RepositoryUrl>https://github.com/sa-es-ir/detester.git</RepositoryUrl>
@@ -27,9 +27,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Azure.AI.OpenAI" />
         <PackageReference Include="Microsoft.Extensions.AI" />
-        <PackageReference Include="Microsoft.Extensions.AI.OpenAI" />
     </ItemGroup>
 
     <ItemGroup>
