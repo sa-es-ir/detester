@@ -17,7 +17,7 @@ Detester is a .NET library that enables you to write deterministic tests for AI-
 ## Features
 
 - **Fluent Builder API**: Chain multiple prompts and assertions in a readable, intuitive way
-- **Multiple AI Provider Support**: Works with OpenAI, Azure OpenAI, and custom `IChatClient` implementations
+- **Any AI Provider Support**: Works with any `IChatClient` implementation (OpenAI, Azure OpenAI, Ollama, etc.)
 - **Model Instructions**: Set system messages to guide model behavior and responses
 - **Response Validation**: Assert that AI responses contain expected keywords or text
 - **Function/Tool Call Verification**: Verify that AI models call the correct functions with expected parameters
@@ -31,17 +31,32 @@ Detester is a .NET library that enables you to write deterministic tests for AI-
 dotnet add package Detester
 ```
 
+For OpenAI support, also install:
+```bash
+dotnet add package Microsoft.Extensions.AI.OpenAI
+```
+
+For Azure OpenAI support, also install:
+```bash
+dotnet add package Azure.AI.OpenAI
+dotnet add package Microsoft.Extensions.AI.OpenAI
+```
+
 ## Quick Start
 
 ### Using OpenAI
 
 ```csharp
 using Detester;
+using Microsoft.Extensions.AI;
+using OpenAI;
 
-// Create a builder with OpenAI
-var builder = DetesterFactory.CreateWithOpenAI(
-    apiKey: "your-openai-api-key",
-    modelName: "gpt-4");
+// Create OpenAI client and wrap it as IChatClient
+var openAIClient = new OpenAIClient("your-openai-api-key");
+var chatClient = openAIClient.GetChatClient("gpt-4").AsIChatClient();
+
+// Create a builder with the chat client
+var builder = DetesterFactory.Create(chatClient);
 
 // Execute a test
 await builder
@@ -53,13 +68,19 @@ await builder
 ### Using Azure OpenAI
 
 ```csharp
+using Azure.AI.OpenAI;
 using Detester;
+using Microsoft.Extensions.AI;
+using System.ClientModel;
 
-// Create a builder with Azure OpenAI
-var builder = DetesterFactory.CreateWithAzureOpenAI(
-    endpoint: "https://your-resource.openai.azure.com",
-    apiKey: "your-azure-api-key",
-    deploymentName: "gpt-4");
+// Create Azure OpenAI client and wrap it as IChatClient
+var azureClient = new AzureOpenAIClient(
+    new Uri("https://your-resource.openai.azure.com"),
+    new ApiKeyCredential("your-azure-api-key"));
+var chatClient = azureClient.GetChatClient("gpt-4-deployment").AsIChatClient();
+
+// Create a builder with the chat client
+var builder = DetesterFactory.Create(chatClient);
 
 // Execute a test
 await builder
@@ -68,22 +89,21 @@ await builder
     .AssertAsync();
 ```
 
-### Using Configuration Options
+### Using Any IChatClient
+
+Detester works with any `IChatClient` implementation from `Microsoft.Extensions.AI`:
 
 ```csharp
-using Detester.Abstraction;
+using Detester;
+using Microsoft.Extensions.AI;
 
-var options = new DetesterOptions
-{
-    OpenAIApiKey = "your-openai-api-key",
-    ModelName = "gpt-4"
-};
-
-var builder = DetesterFactory.Create(options);
+// Use any IChatClient implementation (OpenAI, Azure OpenAI, Ollama, custom, etc.)
+IChatClient chatClient = // your chat client implementation
+var builder = DetesterFactory.Create(chatClient);
 
 await builder
-    .WithPrompt("Tell me a joke")
-    .ShouldContainResponse("joke")
+    .WithPrompt("Test prompt")
+    .ShouldContainResponse("expected text")
     .AssertAsync();
 ```
 
@@ -133,22 +153,6 @@ await builder
     .WithPrompt("Write a haiku about programming")
     .ShouldContainResponse("code")
     .ShouldContainResponse("lines")
-    .AssertAsync();
-```
-
-### Using Custom IChatClient
-
-Integrate with your own chat client implementation:
-
-```csharp
-using Microsoft.Extensions.AI;
-
-IChatClient customClient = // your custom implementation
-var builder = DetesterFactory.Create(customClient);
-
-await builder
-    .WithPrompt("Test prompt")
-    .ShouldContainResponse("expected text")
     .AssertAsync();
 ```
 
@@ -316,15 +320,20 @@ await builder
 ## Testing Example with xUnit
 
 ```csharp
+using Detester;
+using Microsoft.Extensions.AI;
+using OpenAI;
+
 public class AITests
 {
     [Fact]
     public async Task TestAIResponse()
     {
-        // Arrange
-        var builder = DetesterFactory.CreateWithOpenAI(
-            Environment.GetEnvironmentVariable("OPENAI_API_KEY")!,
-            "gpt-4");
+        // Arrange - Create your chat client
+        var openAIClient = new OpenAIClient(
+            Environment.GetEnvironmentVariable("OPENAI_API_KEY")!);
+        var chatClient = openAIClient.GetChatClient("gpt-4").AsIChatClient();
+        var builder = DetesterFactory.Create(chatClient);
 
         // Act & Assert
         await builder
@@ -337,26 +346,32 @@ public class AITests
 
 ## Configuration
 
-### OpenAI Configuration
+Detester uses `IChatClient` from `Microsoft.Extensions.AI` as its core abstraction. You create and configure your chat client according to the provider's documentation:
 
-Set the following environment variables or pass them directly:
-- `OPENAI_API_KEY`: Your OpenAI API key
+### OpenAI
 
-### Azure OpenAI Configuration
+```csharp
+// Install: dotnet add package Microsoft.Extensions.AI.OpenAI
+var openAIClient = new OpenAIClient(Environment.GetEnvironmentVariable("OPENAI_API_KEY")!);
+var chatClient = openAIClient.GetChatClient("gpt-4").AsIChatClient();
+```
 
-Set the following configuration:
-- `AZURE_OPENAI_ENDPOINT`: Your Azure OpenAI endpoint URL
-- `AZURE_OPENAI_API_KEY`: Your Azure OpenAI API key
-- `MODEL_NAME`: Your deployment name
+### Azure OpenAI
+
+```csharp
+// Install: dotnet add package Azure.AI.OpenAI
+// Install: dotnet add package Microsoft.Extensions.AI.OpenAI
+var azureClient = new AzureOpenAIClient(
+    new Uri(Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!),
+    new ApiKeyCredential(Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")!));
+var chatClient = azureClient.GetChatClient("your-deployment-name").AsIChatClient();
+```
 
 ## API Reference
 
 ### DetesterFactory
 
-- `CreateWithOpenAI(apiKey, modelName)`: Create a builder for OpenAI
-- `CreateWithAzureOpenAI(endpoint, apiKey, deploymentName)`: Create a builder for Azure OpenAI
-- `Create(options)`: Create a builder from configuration options
-- `Create(chatClient)`: Create a builder with a custom IChatClient
+- `Create(chatClient)`: Create a builder with an IChatClient implementation
 
 ### IDetesterBuilder
 
@@ -376,7 +391,8 @@ Detester throws `DetesterException` when:
 - No prompts are provided before execution
 - Expected text is not found in the response
 - None of the OR alternatives are found in the response
-- Configuration is invalid
+- Expected function call is not found
+- JSON deserialization fails or validation fails
 
 Detester throws `InvalidOperationException` when:
 - `OrShouldContainResponse` is called without a prior assertion
