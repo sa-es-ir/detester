@@ -16,10 +16,7 @@ public static class DetesterFactory
     /// <exception cref="ArgumentNullException">Thrown when chatClient is null.</exception>
     public static IDetesterBuilder Create(IChatClient chatClient)
     {
-        if (chatClient == null)
-        {
-            throw new ArgumentNullException(nameof(chatClient));
-        }
+        ArgumentNullException.ThrowIfNull(chatClient);
 
         return new DetesterBuilder(chatClient);
     }
