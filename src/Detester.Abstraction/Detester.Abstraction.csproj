@@ -19,6 +19,7 @@
         <RepositoryUrl>https://github.com/sa-es-ir/detester.git</RepositoryUrl>
         <RepositoryType>git</RepositoryType>
         <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <IsPackable>false</IsPackable>
     </PropertyGroup>
 
     <ItemGroup>
