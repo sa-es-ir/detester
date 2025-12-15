@@ -8,10 +8,6 @@
 
 # Detester
 
-AI Deterministic Tester - A testing framework for building deterministic and reliable tests for AI applications.
-
-## Overview
-
 Detester is a .NET library that enables you to write deterministic tests for AI-powered applications. It provides a fluent builder API for testing AI responses, ensuring consistency and reliability in your AI integrations.
 
 ## Features
