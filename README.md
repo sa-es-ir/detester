@@ -27,40 +27,14 @@ Detester is a .NET library that enables you to write deterministic tests for AI-
 dotnet add package Detester
 ```
 
-For OpenAI support, also install:
+For OpenAI or Azure OpenAI support, also install:
 ```bash
 dotnet add package Microsoft.Extensions.AI.OpenAI
-```
-
-For Azure OpenAI support, also install:
-```bash
 dotnet add package Azure.AI.OpenAI
-dotnet add package Microsoft.Extensions.AI.OpenAI
 ```
 
 ## Quick Start
-
-### Using OpenAI
-
-```csharp
-using Detester;
-using Microsoft.Extensions.AI;
-using OpenAI;
-
-// Create OpenAI client and wrap it as IChatClient
-var openAIClient = new OpenAIClient("your-openai-api-key");
-var chatClient = openAIClient.GetChatClient("gpt-4").AsIChatClient();
-
-// Create a builder with the chat client
-var builder = DetesterFactory.Create(chatClient);
-
-// Execute a test
-await builder
-    .WithPrompt("What is the capital of France?")
-    .ShouldContainResponse("Paris")
-    .AssertAsync();
-```
-
+[Check out the Wiki page for a detailed documentation](https://github.com/sa-es-ir/detester/wiki)
 ### Using Azure OpenAI
 
 ```csharp
@@ -117,17 +91,6 @@ await builder
     .AssertAsync();
 ```
 
-Instructions are sent as system messages before any prompts, allowing you to control the model's tone, style, and behavior throughout the conversation:
-
-```csharp
-await builder
-    .WithInstruction("You are a Python expert. Always provide code examples.")
-    .WithPrompt("How do I read a file in Python?")
-    .ShouldContainResponse("open(")
-    .ShouldContainResponse("read(")
-    .AssertAsync();
-```
-
 ### Multiple Prompts
 
 Test conversational flows by chaining multiple prompts:
@@ -139,34 +102,6 @@ await builder
     .ShouldContainResponse("variable")
     .AssertAsync();
 ```
-
-### Multiple Assertions
-
-Add multiple response checks:
-
-```csharp
-await builder
-    .WithPrompt("Write a haiku about programming")
-    .ShouldContainResponse("code")
-    .ShouldContainResponse("lines")
-    .AssertAsync();
-```
-
-### Batch Prompts
-
-Add multiple prompts at once:
-
-```csharp
-await builder
-    .WithPrompts(
-        "What is machine learning?",
-        "How does it differ from traditional programming?",
-        "Give me a practical example")
-    .ShouldContainResponse("algorithm")
-    .ShouldContainResponse("data")
-    .AssertAsync();
-```
-
 ### OR Assertions
 
 Use `OrShouldContainResponse` to create flexible response validation where at least one of the alternatives must match:
@@ -181,78 +116,6 @@ await builder
 ```
 
 In this example, the test passes if the response contains "capital" OR "city" OR "Paris". You can chain multiple OR conditions, and the test will pass if any one of them is found in the response.
-
-#### Combining AND and OR Assertions
-
-You can mix `ShouldContainResponse` (AND) with `OrShouldContainResponse` (OR) for complex validation:
-
-```csharp
-await builder
-    .WithPrompt("Explain machine learning")
-    .ShouldContainResponse("algorithm")  // Must contain "algorithm"
-    .ShouldContainResponse("data")       // AND must contain "data"
-    .OrShouldContainResponse("train")    // AND must contain "train" OR "data"
-    .AssertAsync();
-```
-
-Note: `OrShouldContainResponse` creates an OR group with the immediately preceding assertion. Each subsequent `OrShouldContainResponse` adds another alternative to that OR group.
-
-### Function/Tool Call Verification
-
-Detester supports verifying that AI models call the correct functions/tools with expected parameters. This is useful for testing AI applications that use function calling capabilities.
-
-#### Basic Function Call Verification
-
-Verify that a specific function is called:
-
-```csharp
-await builder
-    .WithPrompt("What's the weather in Paris?")
-    .ShouldCallFunction("get_weather")
-    .AssertAsync();
-```
-
-#### Verify Function Parameters
-
-Check that functions are called with the correct parameters:
-
-```csharp
-await builder
-    .WithPrompt("What's the weather in Paris in celsius?")
-    .ShouldCallFunctionWithParameters("get_weather", 
-        new Dictionary<string, object?> 
-        { 
-            { "location", "Paris" },
-            { "units", "celsius" }
-        })
-    .AssertAsync();
-```
-
-#### Multiple Function Calls
-
-Verify multiple function calls in a single response:
-
-```csharp
-await builder
-    .WithPrompt("Compare the weather in Paris and London")
-    .ShouldCallFunction("get_weather")
-    .ShouldCallFunction("get_weather")
-    .AssertAsync();
-```
-
-#### Combined Verification
-
-Combine function call verification with text response assertions:
-
-```csharp
-await builder
-    .WithPrompt("What's the capital of France?")
-    .ShouldCallFunction("get_capital")
-    .ShouldContainResponse("Paris")
-    .AssertAsync();
-```
-
-For more detailed information and examples, see the [Function Calling Guide](docs/function-calling-guide.md).
 
 ### JSON Response Validation
 
@@ -313,73 +176,62 @@ await builder
 - If validation fails, the test throws `DetesterException` with details about what went wrong
 - For case-insensitive property name matching, use `JsonSerializerOptions { PropertyNameCaseInsensitive = true }`
 
-## Testing Example with xUnit
+### Function/Tool Call Verification
+
+Detester supports verifying that AI models call the correct functions/tools with expected parameters. This is useful for testing AI applications that use function calling capabilities.
+
+#### Basic Function Call Verification
+
+Verify that a specific function is called:
 
 ```csharp
-using Detester;
-using Microsoft.Extensions.AI;
-using OpenAI;
-
-public class AITests
-{
-    [Fact]
-    public async Task TestAIResponse()
-    {
-        // Arrange - Create your chat client
-        var openAIClient = new OpenAIClient(
-            Environment.GetEnvironmentVariable("OPENAI_API_KEY")!);
-        var chatClient = openAIClient.GetChatClient("gpt-4").AsIChatClient();
-        var builder = DetesterFactory.Create(chatClient);
-
-        // Act & Assert
-        await builder
-            .WithPrompt("What is 2+2?")
-            .ShouldContainResponse("4")
-            .AssertAsync();
-    }
-}
+await builder
+    .WithPrompt("What's the weather in Paris?")
+    .ShouldCallFunction("get_weather")
+    .AssertAsync();
 ```
 
-## Configuration
+#### Verify Function Parameters
 
-Detester uses `IChatClient` from `Microsoft.Extensions.AI` as its core abstraction. You create and configure your chat client according to the provider's documentation:
-
-### OpenAI
+Check that functions are called with the correct parameters:
 
 ```csharp
-// Install: dotnet add package Microsoft.Extensions.AI.OpenAI
-var openAIClient = new OpenAIClient(Environment.GetEnvironmentVariable("OPENAI_API_KEY")!);
-var chatClient = openAIClient.GetChatClient("gpt-4").AsIChatClient();
+await builder
+    .WithPrompt("What's the weather in Paris in celsius?")
+    .ShouldCallFunctionWithParameters("get_weather", 
+        new Dictionary<string, object?> 
+        { 
+            { "location", "Paris" },
+            { "units", "celsius" }
+        })
+    .AssertAsync();
 ```
 
-### Azure OpenAI
+#### Multiple Function Calls
+
+Verify multiple function calls in a single response:
 
 ```csharp
-// Install: dotnet add package Azure.AI.OpenAI
-// Install: dotnet add package Microsoft.Extensions.AI.OpenAI
-var azureClient = new AzureOpenAIClient(
-    new Uri(Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!),
-    new ApiKeyCredential(Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")!));
-var chatClient = azureClient.GetChatClient("your-deployment-name").AsIChatClient();
+await builder
+    .WithPrompt("Compare the weather in Paris and London")
+    .ShouldCallFunction("get_weather")
+    .ShouldCallFunction("get_weather")
+    .AssertAsync();
 ```
 
-## API Reference
+#### Combined Verification
 
-### DetesterFactory
+Combine function call verification with text response assertions:
 
-- `Create(chatClient)`: Create a builder with an IChatClient implementation
+```csharp
+await builder
+    .WithPrompt("What's the capital of France?")
+    .ShouldCallFunction("get_capital")
+    .ShouldContainResponse("Paris")
+    .AssertAsync();
+```
 
-### IDetesterBuilder
-
-- `WithInstruction(instruction)`: Set the instruction (system message) for the AI model
-- `WithPrompt(prompt)`: Add a single prompt
-- `WithPrompts(params prompts)`: Add multiple prompts
-- `ShouldContainResponse(expectedText)`: Assert response contains text (case-insensitive, AND condition)
-- `OrShouldContainResponse(expectedText)`: Assert response contains alternative text (case-insensitive, OR condition)
-- `ShouldCallFunction(functionName)`: Assert that a specific function/tool was called
-- `ShouldCallFunctionWithParameters(functionName, parameters)`: Assert that a function was called with specific parameters
-- `ShouldHaveJsonOfType<T>(options, validator)`: Assert that response contains valid JSON deserializable to type T, with optional validation
-- `AssertAsync(cancellationToken)`: Assert the test by executing prompts and validating responses
+For more detailed information and examples, see the [Function Calling Guide](docs/function-calling-guide.md).
 
 ## Error Handling
 
