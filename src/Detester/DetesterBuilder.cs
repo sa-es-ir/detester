@@ -247,7 +247,7 @@ public class DetesterBuilder : IDetesterBuilder
     }
 
     /// <inheritdoc/>
-    public IDetesterBuilder ShouldBeEqualTo(string expected, StringComparison comparison = StringComparison.Ordinal)
+    public IDetesterBuilder ShouldBeEqualTo(string expected, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
     {
         if (expected is null)
         {
@@ -388,7 +388,7 @@ public class DetesterBuilder : IDetesterBuilder
                         $"Actual response: {responseText}");
                 }
 
-                // Check NOT-CONTAINS assertions (single)
+                // Check individual NOT-CONTAINS assertions
                 var violatingUnexpected = unexpectedResponses
                     .Where(unexpected => responseText.Contains(unexpected, StringComparison.OrdinalIgnoreCase))
                     .ToList();
@@ -401,7 +401,7 @@ public class DetesterBuilder : IDetesterBuilder
                         $"Actual response: {responseText}");
                 }
 
-                // Check NOT-CONTAINS-ANY assertions (any of the registered texts must be absent)
+                // Check NOT-CONTAINS-ANY assertions (ensure all specified texts are absent)
                 var violatingAny = unexpectedAnyResponses
                     .Where(unexpected => responseText.Contains(unexpected, StringComparison.OrdinalIgnoreCase))
                     .ToList();

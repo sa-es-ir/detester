@@ -58,8 +58,11 @@ public interface IDetesterBuilder
 
     /// <summary>
     /// Asserts that the AI response does not contain any of the specified texts.
+    /// This ensures that none of the provided texts appear in the response and is
+    /// equivalent to calling <see cref="ShouldNotContainResponse(string)"/> once
+    /// for each value in <paramref name="unexpectedTexts"/>.
     /// </summary>
-    /// <param name="unexpectedTexts">The texts that should not be present in the response.</param>
+    /// <param name="unexpectedTexts">The texts that must not be present anywhere in the response.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IDetesterBuilder ShouldNotContainAnyResponse(params string[] unexpectedTexts);
 
@@ -94,11 +97,15 @@ public interface IDetesterBuilder
 
     /// <summary>
     /// Asserts that the AI response is equal to the specified text using the provided string comparison.
+    /// By default, this uses a case-insensitive comparison for consistency with other string assertion methods.
     /// </summary>
     /// <param name="expected">The expected response text.</param>
-    /// <param name="comparison">The string comparison to use when comparing the response to the expected text.</param>
+    /// <param name="comparison">
+    /// The string comparison to use when comparing the response to the expected text.
+    /// Defaults to <see cref="StringComparison.OrdinalIgnoreCase"/>.
+    /// </param>
     /// <returns>The builder instance for method chaining.</returns>
-    IDetesterBuilder ShouldBeEqualTo(string expected, StringComparison comparison = StringComparison.Ordinal);
+    IDetesterBuilder ShouldBeEqualTo(string expected, StringComparison comparison = StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Asserts that the AI response contains the specified text as an alternative to the previous assertion.

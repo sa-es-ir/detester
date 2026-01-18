@@ -1216,6 +1216,21 @@ public class DetesterBuilderTests
     }
 
     [Fact]
+    public async Task AssertAsync_WithShouldBeEqualTo_MatchingIgnoreCase_CompletesSuccessfully()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Exact match"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldBeEqualTo("exact match", StringComparison.OrdinalIgnoreCase)
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task AssertAsync_WithShouldBeEqualTo_NotMatching_ThrowsDetesterException()
     {
         var mockClient = new MockChatClient
