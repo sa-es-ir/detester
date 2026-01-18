@@ -5,7 +5,7 @@ namespace Detester;
 /// <summary>
 /// Represents an expectation for a function call in an AI response.
 /// </summary>
-internal class FunctionCallExpectation
+internal sealed class FunctionCallExpectation
 {
     /// <summary>
     /// Gets or sets the name of the function that is expected to be called.

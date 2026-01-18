@@ -635,27 +635,4 @@ public class DetesterBuilder : IDetesterBuilder
         // For other types, use standard equality
         return actual.Equals(expected);
     }
-
-    private sealed class FunctionCallExpectation
-    {
-        public string FunctionName { get; set; } = string.Empty;
-
-        public IDictionary<string, object?>? ExpectedParameters { get; set; }
-    }
-
-    private sealed class JsonExpectation
-    {
-        public Type TargetType { get; set; } = typeof(object);
-
-        public JsonSerializerOptions? Options { get; set; }
-
-        public Delegate? Validator { get; set; }
-    }
-
-    private sealed class EqualityExpectation
-    {
-        public string Expected { get; set; } = string.Empty;
-
-        public StringComparison Comparison { get; set; }
-    }
 }
