@@ -84,10 +84,17 @@ await builder
 Set custom instructions (system messages) to guide the model's behavior:
 
 ```csharp
-await builder
-    .WithInstruction("You are a helpful assistant that provides concise answers.")
-    .WithPrompt("What is machine learning?")
-    .ShouldContainResponse("algorithm")
+await new DetesterBuilder(chatClient)
+    .WithInstruction("Answer concisely.")
+    .WithPrompt("Summarize this long text you've provided.")
+    .ShouldContainResponse("summary")
+    .ShouldContainAll("short", "summary")
+    .ShouldContainAny("tl;dr", "summary", "in short")
+    .ShouldNotContainResponse("error")
+    .ShouldNotContain("stack trace")
+    .ShouldNotContainAnyResponse("SECRET_KEY", "password")
+    .ShouldMatchRegex(@"^[A-Z].+")
+    .ShouldBeEqualTo("Exact match", StringComparison.OrdinalIgnoreCase) // if you want strict equality
     .AssertAsync();
 ```
 
