@@ -50,12 +50,80 @@ public interface IDetesterBuilder
     IDetesterBuilder ShouldContainResponse(string expectedText);
 
     /// <summary>
+    /// Asserts that the AI response does not contain the specified text.
+    /// </summary>
+    /// <param name="unexpectedText">The text that should not be present in the response.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldNotContainResponse(string unexpectedText);
+
+    /// <summary>
+    /// Asserts that the AI response does not contain any of the specified texts.
+    /// This ensures that none of the provided texts appear in the response and is
+    /// equivalent to calling <see cref="ShouldNotContainResponse(string)"/> once
+    /// for each value in <paramref name="unexpectedTexts"/>.
+    /// </summary>
+    /// <param name="unexpectedTexts">The texts that must not be present anywhere in the response.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldNotContainAnyResponse(params string[] unexpectedTexts);
+
+    /// <summary>
+    /// Asserts that the AI response matches the specified regular expression pattern.
+    /// </summary>
+    /// <param name="pattern">The regular expression pattern the response must match.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldMatchRegex(string pattern);
+
+    /// <summary>
+    /// Asserts that the AI response does not contain the specified text.
+    /// Alias for <see cref="ShouldNotContainResponse"/> for semantic clarity.
+    /// </summary>
+    /// <param name="unexpectedText">The text that should not be present in the response.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldNotContain(string unexpectedText);
+
+    /// <summary>
+    /// Asserts that the AI response contains all of the specified substrings.
+    /// </summary>
+    /// <param name="expectedSubstrings">The substrings that must all be present in the response.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldContainAll(params string[] expectedSubstrings);
+
+    /// <summary>
+    /// Asserts that the AI response contains at least one of the specified substrings.
+    /// </summary>
+    /// <param name="expectedSubstrings">The substrings where at least one must be present in the response.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldContainAny(params string[] expectedSubstrings);
+
+    /// <summary>
+    /// Asserts that the AI response is equal to the specified text using the provided string comparison.
+    /// By default, this uses a case-insensitive comparison for consistency with other string assertion methods.
+    /// </summary>
+    /// <param name="expected">The expected response text.</param>
+    /// <param name="comparison">
+    /// The string comparison to use when comparing the response to the expected text.
+    /// Defaults to <see cref="StringComparison.OrdinalIgnoreCase"/>.
+    /// </param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldBeEqualTo(string expected, StringComparison comparison = StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Asserts that the AI response contains the specified text as an alternative to the previous assertion.
     /// This creates an OR condition where at least one of the options in the OR group must match.
     /// </summary>
     /// <param name="expectedText">The alternative text that should be present in the response.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IDetesterBuilder OrShouldContainResponse(string expectedText);
+
+    /// <summary>
+    /// Asserts that the AI response contains valid JSON that can be deserialized to the specified type.
+    /// Optionally validates the deserialized object using a predicate function.
+    /// </summary>
+    /// <typeparam name="T">The type to deserialize the JSON response into.</typeparam>
+    /// <param name="options">JSON serializer options to use for deserialization. If null, default options are used.</param>
+    /// <param name="validator">Optional predicate to validate the deserialized object. Returns true if validation passes.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldHaveJsonOfType<T>(System.Text.Json.JsonSerializerOptions? options = null, Func<T, bool>? validator = null);
 
     /// <summary>
     /// Asserts that the AI model called the specified function/tool.
@@ -71,16 +139,6 @@ public interface IDetesterBuilder
     /// <param name="expectedParameters">The expected parameters that should have been passed to the function.</param>
     /// <returns>The builder instance for method chaining.</returns>
     IDetesterBuilder ShouldCallFunctionWithParameters(string functionName, IDictionary<string, object?> expectedParameters);
-
-    /// <summary>
-    /// Asserts that the AI response contains valid JSON that can be deserialized to the specified type.
-    /// Optionally validates the deserialized object using a predicate function.
-    /// </summary>
-    /// <typeparam name="T">The type to deserialize the JSON response into.</typeparam>
-    /// <param name="options">JSON serializer options to use for deserialization. If null, default options are used.</param>
-    /// <param name="validator">Optional predicate to validate the deserialized object. Returns true if validation passes.</param>
-    /// <returns>The builder instance for method chaining.</returns>
-    IDetesterBuilder ShouldHaveJsonOfType<T>(System.Text.Json.JsonSerializerOptions? options = null, Func<T, bool>? validator = null);
 
     /// <summary>
     /// Asserts the test asynchronously by executing the configured prompts and validating responses.

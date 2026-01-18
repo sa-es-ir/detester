@@ -1028,4 +1028,221 @@ public class DetesterBuilderTests
             })
             .AssertAsync(TestContext.Current.CancellationToken);
     }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldNotContainResponse_Violated_ThrowsDetesterException()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with secret keyword"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("Test prompt")
+                .ShouldNotContainResponse("secret")
+                .AssertAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldNotContainResponse_NotViolated_CompletesSuccessfully()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Clean response"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldNotContainResponse("secret")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldNotContainAnyResponse_Violated_ThrowsDetesterException()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with foo"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("Test prompt")
+                .ShouldNotContainAnyResponse("foo", "bar")
+                .AssertAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldNotContainAnyResponse_NotViolated_CompletesSuccessfully()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Safe response"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldNotContainAnyResponse("foo", "bar")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldMatchRegex_Matches_CompletesSuccessfully()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Order #1234: item shipped"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await builder
+            .WithPrompt("status")
+            .ShouldMatchRegex(@"Order #[0-9]+: item shipped")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldMatchRegex_NotMatching_ThrowsDetesterException()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Order: item shipped"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("status")
+                .ShouldMatchRegex(@"Order #[0-9]+: item shipped")
+                .AssertAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldNotContain_AliasBehavesLikeShouldNotContainResponse()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Response with secret keyword"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("Test prompt")
+                .ShouldNotContain("secret")
+                .AssertAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldContainAll_AllPresent_CompletesSuccessfully()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "This response has foo and bar and baz"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldContainAll("foo", "bar", "baz")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldContainAll_Missing_ThrowsDetesterException()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "This response has foo only"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("Test prompt")
+                .ShouldContainAll("foo", "bar")
+                .AssertAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldContainAny_OneMatches_CompletesSuccessfully()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "This response mentions bar"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldContainAny("foo", "bar", "baz")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldContainAny_NoneMatch_ThrowsDetesterException()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "This response mentions qux"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("Test prompt")
+                .ShouldContainAny("foo", "bar", "baz")
+                .AssertAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldBeEqualTo_Matching_CompletesSuccessfully()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Exact match"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldBeEqualTo("Exact match")
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldBeEqualTo_MatchingIgnoreCase_CompletesSuccessfully()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Exact match"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await builder
+            .WithPrompt("Test prompt")
+            .ShouldBeEqualTo("exact match", StringComparison.OrdinalIgnoreCase)
+            .AssertAsync(TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task AssertAsync_WithShouldBeEqualTo_NotMatching_ThrowsDetesterException()
+    {
+        var mockClient = new MockChatClient
+        {
+            ResponseText = "Exact match"
+        };
+        var builder = new DetesterBuilder(mockClient);
+
+        await Assert.ThrowsAsync<DetesterException>(() =>
+            builder
+                .WithPrompt("Test prompt")
+                .ShouldBeEqualTo("exact match", StringComparison.Ordinal)
+                .AssertAsync(TestContext.Current.CancellationToken));
+    }
 }

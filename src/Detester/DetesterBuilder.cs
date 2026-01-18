@@ -13,6 +13,12 @@ public class DetesterBuilder : IDetesterBuilder
     private readonly List<string> prompts = [];
     private readonly List<string> expectedResponses = [];
     private readonly List<List<string>> orResponseGroups = [];
+    private readonly List<string> unexpectedResponses = [];
+    private readonly List<string> unexpectedAnyResponses = [];
+    private readonly List<string> regexPatterns = [];
+    private readonly List<string> containAllSubstrings = [];
+    private readonly List<List<string>> containAnyGroups = [];
+    private readonly List<EqualityExpectation> equalityExpectations = [];
     private readonly List<FunctionCallExpectation> expectedFunctionCalls = [];
     private readonly List<JsonExpectation> jsonExpectations = [];
     private string? instruction;
@@ -145,6 +151,119 @@ public class DetesterBuilder : IDetesterBuilder
     }
 
     /// <inheritdoc/>
+    public IDetesterBuilder ShouldNotContainResponse(string unexpectedText)
+    {
+        if (string.IsNullOrWhiteSpace(unexpectedText))
+        {
+            throw new ArgumentException("Unexpected text cannot be null or whitespace.", nameof(unexpectedText));
+        }
+
+        unexpectedResponses.Add(unexpectedText);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldNotContainAnyResponse(params string[] unexpectedTexts)
+    {
+        if (unexpectedTexts == null || unexpectedTexts.Length == 0)
+        {
+            throw new ArgumentException("Unexpected texts cannot be null or empty.", nameof(unexpectedTexts));
+        }
+
+        foreach (var text in unexpectedTexts)
+        {
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                throw new ArgumentException("Individual unexpected texts cannot be null or whitespace.", nameof(unexpectedTexts));
+            }
+
+            unexpectedAnyResponses.Add(text);
+        }
+
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldMatchRegex(string pattern)
+    {
+        if (string.IsNullOrWhiteSpace(pattern))
+        {
+            throw new ArgumentException("Pattern cannot be null or whitespace.", nameof(pattern));
+        }
+
+        regexPatterns.Add(pattern);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldNotContain(string unexpectedText)
+    {
+        return ShouldNotContainResponse(unexpectedText);
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldContainAll(params string[] expectedSubstrings)
+    {
+        if (expectedSubstrings == null || expectedSubstrings.Length == 0)
+        {
+            throw new ArgumentException("Expected substrings cannot be null or empty.", nameof(expectedSubstrings));
+        }
+
+        foreach (var substring in expectedSubstrings)
+        {
+            if (string.IsNullOrWhiteSpace(substring))
+            {
+                throw new ArgumentException("Individual expected substrings cannot be null or whitespace.", nameof(expectedSubstrings));
+            }
+
+            containAllSubstrings.Add(substring);
+        }
+
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldContainAny(params string[] expectedSubstrings)
+    {
+        if (expectedSubstrings == null || expectedSubstrings.Length == 0)
+        {
+            throw new ArgumentException("Expected substrings cannot be null or empty.", nameof(expectedSubstrings));
+        }
+
+        var group = new List<string>();
+
+        foreach (var substring in expectedSubstrings)
+        {
+            if (string.IsNullOrWhiteSpace(substring))
+            {
+                throw new ArgumentException("Individual expected substrings cannot be null or whitespace.", nameof(expectedSubstrings));
+            }
+
+            group.Add(substring);
+        }
+
+        containAnyGroups.Add(group);
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldBeEqualTo(string expected, StringComparison comparison = StringComparison.OrdinalIgnoreCase)
+    {
+        if (expected is null)
+        {
+            throw new ArgumentNullException(nameof(expected));
+        }
+
+        equalityExpectations.Add(new EqualityExpectation
+        {
+            Expected = expected,
+            Comparison = comparison,
+        });
+
+        return this;
+    }
+
+    /// <inheritdoc/>
     public IDetesterBuilder OrShouldContainResponse(string expectedText)
     {
         if (string.IsNullOrWhiteSpace(expectedText))
@@ -248,8 +367,11 @@ public class DetesterBuilder : IDetesterBuilder
 
             chatHistory.Add(new ChatMessage(ChatRole.Assistant, response.Text));
 
-            // Check if response contains expected text for any of the assertions
-            if (expectedResponses.Count > 0 || orResponseGroups.Count > 0)
+            // Check if response contains expected or unexpected text for any of the assertions
+            if (expectedResponses.Count > 0 || orResponseGroups.Count > 0 ||
+                unexpectedResponses.Count > 0 || unexpectedAnyResponses.Count > 0 ||
+                regexPatterns.Count > 0 || containAllSubstrings.Count > 0 ||
+                containAnyGroups.Count > 0 || equalityExpectations.Count > 0)
             {
                 var responseText = response.Text ?? string.Empty;
 
@@ -264,6 +386,79 @@ public class DetesterBuilder : IDetesterBuilder
                     throw new DetesterException(
                         $"Response did not contain expected text(s): {missingText}. " +
                         $"Actual response: {responseText}");
+                }
+
+                // Check individual NOT-CONTAINS assertions
+                var violatingUnexpected = unexpectedResponses
+                    .Where(unexpected => responseText.Contains(unexpected, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (violatingUnexpected.Count > 0)
+                {
+                    var violatingText = string.Join(", ", violatingUnexpected.Select(e => $"'{e}'"));
+                    throw new DetesterException(
+                        $"Response contained unexpected text(s): {violatingText}. " +
+                        $"Actual response: {responseText}");
+                }
+
+                // Check NOT-CONTAINS-ANY assertions (ensure all specified texts are absent)
+                var violatingAny = unexpectedAnyResponses
+                    .Where(unexpected => responseText.Contains(unexpected, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (violatingAny.Count > 0)
+                {
+                    var violatingText = string.Join(", ", violatingAny.Select(e => $"'{e}'"));
+                    throw new DetesterException(
+                        $"Response contained one or more texts that should not appear: {violatingText}. " +
+                        $"Actual response: {responseText}");
+                }
+
+                // Check regex patterns
+                foreach (var pattern in regexPatterns)
+                {
+                    if (!System.Text.RegularExpressions.Regex.IsMatch(responseText, pattern))
+                    {
+                        throw new DetesterException(
+                            $"Response did not match the required regular expression pattern '{pattern}'. " +
+                            $"Actual response: {responseText}");
+                    }
+                }
+
+                // Check that response contains all required substrings
+                var missingAllSubstrings = containAllSubstrings
+                    .Where(s => !responseText.Contains(s, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+
+                if (missingAllSubstrings.Count > 0)
+                {
+                    var missingText = string.Join(", ", missingAllSubstrings.Select(e => $"'{e}'"));
+                    throw new DetesterException(
+                        $"Response did not contain all required substrings: {missingText}. " +
+                        $"Actual response: {responseText}");
+                }
+
+                // Check ANY-groups (at least one in each group must match)
+                foreach (var group in containAnyGroups)
+                {
+                    var hasAny = group.Any(s => responseText.Contains(s, StringComparison.OrdinalIgnoreCase));
+                    if (!hasAny)
+                    {
+                        var options = string.Join("' OR '", group);
+                        throw new DetesterException(
+                            $"Response did not contain any of the required alternatives: '{options}'. " +
+                            $"Actual response: {responseText}");
+                    }
+                }
+
+                // Check equality expectations
+                foreach (var expectation in equalityExpectations)
+                {
+                    if (!string.Equals(responseText, expectation.Expected, expectation.Comparison))
+                    {
+                        throw new DetesterException(
+                            $"Response was not equal to the expected text. Expected: '{expectation.Expected}', Actual: '{responseText}'.");
+                    }
                 }
 
                 // Check OR assertions (at least one in each OR group must match)

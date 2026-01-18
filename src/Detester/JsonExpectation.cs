@@ -7,7 +7,7 @@ using System.Text.Json;
 /// <summary>
 /// Represents an expectation for JSON deserialization in an AI response.
 /// </summary>
-internal class JsonExpectation
+internal sealed class JsonExpectation
 {
     /// <summary>
     /// Gets or sets the type to deserialize the JSON response into.
