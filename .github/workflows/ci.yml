@@ -11,6 +11,7 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    environment: develop_secrets
 
     steps:
       - name: Checkout code
