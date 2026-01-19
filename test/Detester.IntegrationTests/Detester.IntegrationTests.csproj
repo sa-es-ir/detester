@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <OutputType>Exe</OutputType>
         <IsPackable>false</IsPackable>
+        <NoWarn>SA1615,SA1515,SA0001</NoWarn>
     </PropertyGroup>
 
     <ItemGroup>
