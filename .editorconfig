@@ -26,6 +26,7 @@ dotnet_diagnostic.SA1633.severity = none
 dotnet_diagnostic.SA1000.severity = none
 dotnet_diagnostic.SA1010.severity = none
 dotnet_diagnostic.SA1101.severity = none
+dotnet_diagnostic.SA1011.severity = none
 
 # Xml files
 [*.xml]
