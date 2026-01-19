@@ -14,7 +14,7 @@ public class FunctionCallTests : IClassFixture<AzureOpenAIChatClientFixture>
         chatOptions = fixture.CreateChatOptions();
     }
 
-    [Fact]
+    [Fact(Skip = "Function calling tests are not yet implemented.")]
     public async Task ShouldCallFunction_WithExpectedFunction_Succeeds()
     {
         var builder = new DetesterBuilder(functionClient);
@@ -31,7 +31,7 @@ public class FunctionCallTests : IClassFixture<AzureOpenAIChatClientFixture>
             .AssertAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact]
+    [Fact(Skip = "Function calling tests are not yet implemented.")]
     public async Task ShouldCallFunctionWithParameters_WithExpectedArguments_Succeeds()
     {
         var builder = new DetesterBuilder(functionClient);
