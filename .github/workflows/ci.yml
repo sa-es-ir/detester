@@ -11,7 +11,6 @@ on:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    environment: develop_secrets
 
     steps:
       - name: Checkout code
@@ -34,5 +33,5 @@ jobs:
         env:
           AzureOpenAI__ApiKey: ${{ secrets.AZURE_OPENAI_API_KEY }}
           AzureOpenAI__Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
-          AzureOpenAI__ChatDeploymentName: ${{ vars.AZURE_OPENAI_CHAT_DEPLOYMENT_NAME }}
+          AzureOpenAI__ChatDeploymentName: ${{ secrets.AZURE_OPENAI_CHAT_DEPLOYMENT_NAME }}
         run: dotnet run --project test/Detester.IntegrationTests/Detester.IntegrationTests.csproj --no-build --verbosity normal
