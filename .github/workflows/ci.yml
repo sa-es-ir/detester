@@ -29,3 +29,9 @@ jobs:
 
       - name: Run tests
         run: dotnet run --project test/Detester.Tests/Detester.Tests.csproj --no-build --verbosity normal
+      - name: Run integration tests
+        env:
+          AzureOpenAI__ApiKey: ${{ secrets.AZURE_OPENAI_API_KEY }}
+          AzureOpenAI__Endpoint: ${{ secrets.AZURE_OPENAI_ENDPOINT }}
+          AzureOpenAI__ChatDeploymentName: ${{ vars.AZURE_OPENAI_CHAT_DEPLOYMENT_NAME }}
+        run: dotnet run --project test/Detester.IntegrationTests/Detester.IntegrationTests.csproj --no-build --verbosity normal
