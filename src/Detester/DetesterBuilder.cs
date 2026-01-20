@@ -10,6 +10,7 @@ using System.Text.Json;
 public class DetesterBuilder : IDetesterBuilder
 {
     private readonly IChatClient chatClient;
+    private readonly ChatOptions? mainChatOptions;
     private readonly List<string> prompts = [];
     private readonly List<string> expectedResponses = [];
     private readonly List<List<string>> orResponseGroups = [];
@@ -31,6 +32,18 @@ public class DetesterBuilder : IDetesterBuilder
     public DetesterBuilder(IChatClient chatClient)
     {
         this.chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DetesterBuilder"/> class.
+    /// </summary>
+    /// <param name="chatClient">The chat client to be used for communication. Cannot be null.</param>
+    /// <param name="chatOptions">The configuration options for the chat client. Specifies behavior, settings and tools for chat operations.</param>
+    /// <exception cref="ArgumentNullException">Thrown if <paramref name="chatClient"/> is null.</exception>
+    public DetesterBuilder(IChatClient chatClient, ChatOptions chatOptions)
+    {
+        this.chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
+        this.mainChatOptions = chatOptions;
     }
 
     /// <inheritdoc/>
@@ -341,6 +354,93 @@ public class DetesterBuilder : IDetesterBuilder
     /// <inheritdoc/>
     public async Task AssertAsync(CancellationToken cancellationToken = default)
     {
+        await DoAssertAsync(mainChatOptions, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task AssertAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default)
+    {
+        await DoAssertAsync(chatOptions ?? mainChatOptions, cancellationToken);
+    }
+
+    private static bool ParametersMatch(
+        IDictionary<string, object?>? actual,
+        IDictionary<string, object?> expected)
+    {
+        if (actual == null)
+        {
+            return false;
+        }
+
+        if (actual.Count == 1 && actual.ContainsKey("request"))
+        {
+            // Serialize to a JsonElement so we can query properties
+            var element = JsonSerializer.SerializeToElement(actual["request"]);
+            foreach (var kvp in expected)
+            {
+                if (!element.TryGetProperty(kvp.Key, out var prop))
+                {
+                    return false;
+                }
+
+                var expectedJson = JsonSerializer.Serialize(kvp.Value);
+                var actualJson = prop.GetRawText();
+
+                if (!string.Equals(expectedJson, actualJson, StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        // Fallback: compare top-level keys/values normally
+        if (actual.Count != expected.Count)
+        {
+            return false;
+        }
+
+        foreach (var kvp in expected)
+        {
+            if (!actual.TryGetValue(kvp.Key, out var actualValue))
+            {
+                return false;
+            }
+
+            if (!Equals(actualValue, kvp.Value))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool ValuesEqual(object? actual, object? expected)
+    {
+        if (actual == null && expected == null)
+        {
+            return true;
+        }
+
+        if (actual == null || expected == null)
+        {
+            return false;
+        }
+
+        // Handle string comparison case-insensitively
+        if (actual is string actualStr && expected is string expectedStr)
+        {
+            return actualStr.Equals(expectedStr, StringComparison.OrdinalIgnoreCase);
+        }
+
+        // For other types, use standard equality
+        return actual.Equals(expected);
+    }
+
+    private async Task DoAssertAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default)
+    {
         if (prompts.Count == 0)
         {
             throw new DetesterException("No prompts have been added. Use WithPrompt or WithPrompts before asserting.");
@@ -358,7 +458,7 @@ public class DetesterBuilder : IDetesterBuilder
         {
             chatHistory.Add(new ChatMessage(ChatRole.User, prompt));
 
-            var response = await chatClient.GetResponseAsync(chatHistory, cancellationToken: cancellationToken);
+            var response = await chatClient.GetResponseAsync(chatHistory, chatOptions, cancellationToken: cancellationToken);
 
             if (response?.Text == null)
             {
@@ -523,8 +623,14 @@ public class DetesterBuilder : IDetesterBuilder
                         if (expectation.ExpectedParameters != null)
                         {
                             var expectedParams = string.Join(", ", expectation.ExpectedParameters.Select(p => $"{p.Key}={p.Value}"));
+                            var actualParamsList = functionCalls
+                                .Where(f => f.Name == expectation.FunctionName)
+                                .Select(f => f.Arguments != null
+                                    ? string.Join(", ", f.Arguments.Select(a => a.Value))
+                                    : "NO_PARAMETERS");
+                            var actualParams = string.Join(", ", actualParamsList);
                             throw new DetesterException(
-                                $"Expected function '{expectation.FunctionName}' to be called with parameters ({expectedParams}), but it was not called with those parameters. Actual function calls: {actualFunctions}");
+                                $"Expected function '{expectation.FunctionName}' to be called with parameters ({expectedParams}), but it was not called with those parameters. Actual parameters were: {actualParams}");
                         }
                         else
                         {
@@ -587,52 +693,5 @@ public class DetesterBuilder : IDetesterBuilder
                 }
             }
         }
-    }
-
-    private static bool ParametersMatch(IDictionary<string, object?>? actual, IDictionary<string, object?> expected)
-    {
-        if (actual == null)
-        {
-            return expected.Count == 0;
-        }
-
-        // Check if all expected parameters are present and have matching values
-        foreach (var expectedParam in expected)
-        {
-            if (!actual.TryGetValue(expectedParam.Key, out var actualValue))
-            {
-                return false;
-            }
-
-            // Compare values
-            if (!ValuesEqual(actualValue, expectedParam.Value))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    private static bool ValuesEqual(object? actual, object? expected)
-    {
-        if (actual == null && expected == null)
-        {
-            return true;
-        }
-
-        if (actual == null || expected == null)
-        {
-            return false;
-        }
-
-        // Handle string comparison case-insensitively
-        if (actual is string actualStr && expected is string expectedStr)
-        {
-            return actualStr.Equals(expectedStr, StringComparison.OrdinalIgnoreCase);
-        }
-
-        // For other types, use standard equality
-        return actual.Equals(expected);
     }
 }
