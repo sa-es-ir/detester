@@ -14,10 +14,10 @@ public class FunctionCallTests : IClassFixture<AzureOpenAIChatClientFixture>
         chatOptions = fixture.CreateChatOptions();
     }
 
-    [Fact(Skip = "Function calling tests are not yet implemented.")]
+    [Fact]
     public async Task ShouldCallFunction_WithExpectedFunction_Succeeds()
     {
-        var builder = new DetesterBuilder(functionClient);
+        var builder = new DetesterBuilder(functionClient, chatOptions);
 
         const string instruction =
             "You are an assistant used for automated tests. " +
@@ -31,10 +31,10 @@ public class FunctionCallTests : IClassFixture<AzureOpenAIChatClientFixture>
             .AssertAsync(TestContext.Current.CancellationToken);
     }
 
-    [Fact(Skip = "Function calling tests are not yet implemented.")]
+    [Fact]
     public async Task ShouldCallFunctionWithParameters_WithExpectedArguments_Succeeds()
     {
-        var builder = new DetesterBuilder(functionClient);
+        var builder = new DetesterBuilder(functionClient, chatOptions);
 
         const string instruction =
             "You are an assistant used for automated tests. " +

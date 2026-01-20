@@ -52,6 +52,9 @@ var chatClient = azureClient.GetChatClient("gpt-4-deployment").AsIChatClient();
 // Create a builder with the chat client
 var builder = DetesterFactory.Create(chatClient);
 
+// Or create a builder with ChatOptions (to configure tools, behavior, and settings)
+var builder = DetesterFactory.Create(chatClient, new ChatOptions {/*setup*/});
+
 // Execute a test
 await builder
     .WithPrompt("Explain quantum computing in simple terms")
