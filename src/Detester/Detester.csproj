@@ -9,7 +9,7 @@
 
         <!-- NuGet Package Metadata -->
         <PackageId>Detester</PackageId>
-        <Version>1.0.2</Version>
+        <Version>1.0.3</Version>
         <Authors>Saeed Esmaeelinejad</Authors>
         <Company>Detester</Company>
         <PackageIcon>packageIcon.jpeg</PackageIcon>
