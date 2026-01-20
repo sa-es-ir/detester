@@ -1,3 +1,5 @@
+using Microsoft.Extensions.AI;
+
 namespace Detester.Abstraction;
 
 /// <summary>
@@ -146,4 +148,13 @@ public interface IDetesterBuilder
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task AssertAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Asserts the test asynchronously by executing the configured prompts and validating responses.
+    /// </summary>
+    /// <param name="chatOptions">The chat options to use for the assertion like tools, behavior, and settings.
+    /// If passed null, the main one on the builder will be used.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task AssertAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default);
 }

@@ -1013,7 +1013,7 @@ public class DetesterBuilderTests
             [
                 new FunctionCallContent("call-123", "get_weather", new Dictionary<string, object?>
                 {
-                    { "location", "PARIS" }
+                    { "location", "paris" }
                 })
             ]
         };
