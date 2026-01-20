@@ -1,19 +1,19 @@
 <Project>
-  <PropertyGroup>
-    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
-    <PackageVersion Include="Detester" Version="1.0.2" />
-    <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.2.0-preview.1.26063.2" />
-    <PackageVersion Include="xunit.v3" Version="3.2.2" />
-    <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.2.0" />
-    <PackageVersion Include="Microsoft.Extensions.AI" Version="10.2.0" />
-    <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
-    <PackageVersion Include="coverlet.collector" Version="6.0.4" />
-    <GlobalPackageReference Include="StyleCop.Analyzers" Version="1.1.118">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </GlobalPackageReference>
-  </ItemGroup>
+    <PropertyGroup>
+        <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageVersion Include="Azure.AI.OpenAI" Version="2.1.0" />
+        <PackageVersion Include="Detester" Version="1.0.3" />
+        <PackageVersion Include="Microsoft.Extensions.AI.OpenAI" Version="10.2.0-preview.1.26063.2" />
+        <PackageVersion Include="xunit.v3" Version="3.2.2" />
+        <PackageVersion Include="Microsoft.Extensions.AI.Abstractions" Version="10.2.0" />
+        <PackageVersion Include="Microsoft.Extensions.AI" Version="10.2.0" />
+        <PackageVersion Include="xunit.runner.visualstudio" Version="3.1.5" />
+        <PackageVersion Include="coverlet.collector" Version="6.0.4" />
+        <GlobalPackageReference Include="StyleCop.Analyzers" Version="1.1.118">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </GlobalPackageReference>
+    </ItemGroup>
 </Project>
