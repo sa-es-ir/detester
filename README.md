@@ -35,6 +35,7 @@ dotnet add package Azure.AI.OpenAI
 
 ## Quick Start
 [Check out the Wiki page for a detailed documentation](https://github.com/sa-es-ir/detester/wiki)
+
 ### Using Azure OpenAI
 
 ```csharp
