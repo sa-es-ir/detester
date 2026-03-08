@@ -13,13 +13,28 @@ public class MockChatClient : IChatClient
 
     public List<FunctionCallContent> FunctionCallsToReturn { get; set; } = [];
 
+    /// <summary>
+    /// Gets or sets optional usage details to include in the response (for token assertion tests).
+    /// </summary>
+    public UsageDetails? UsageDetailsToReturn { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional delay in milliseconds before returning a response (for latency assertion tests).
+    /// </summary>
+    public int ResponseDelayMs { get; set; }
+
     public ChatClientMetadata Metadata => new ChatClientMetadata("MockClient");
 
-    public Task<ChatResponse> GetResponseAsync(
+    public async Task<ChatResponse> GetResponseAsync(
         IEnumerable<ChatMessage> messages,
         ChatOptions? options = null,
         CancellationToken cancellationToken = default)
     {
+        if (ResponseDelayMs > 0)
+        {
+            await Task.Delay(ResponseDelayMs, cancellationToken);
+        }
+
         var contents = new List<AIContent>();
 
         if (!string.IsNullOrEmpty(ResponseText))
@@ -33,9 +48,12 @@ public class MockChatClient : IChatClient
             ? new ChatMessage(ChatRole.Assistant, contents)
             : new ChatMessage(ChatRole.Assistant, ResponseText);
 
-        // Return a ChatResponse containing the single assistant message.
-        var response = new ChatResponse([assistantMessage]);
-        return Task.FromResult(response);
+        var response = new ChatResponse([assistantMessage])
+        {
+            Usage = UsageDetailsToReturn,
+        };
+
+        return response;
     }
 
     public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
