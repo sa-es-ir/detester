@@ -20,6 +20,8 @@ Detester is a .NET library that enables you to write deterministic tests for AI-
 - **Response Validation**: Assert that AI responses contain expected keywords or text
 - **Function/Tool Call Verification**: Verify that AI models call the correct functions with expected parameters
 - **JSON Response Validation**: Deserialize and validate JSON responses from AI models with type-safe validation
+- **Reliability Evaluation**: Run the same test multiple times and assert a minimum pass rate to handle LLM non-determinism
+- **Performance Assertions**: Assert response latency and token usage stay within defined budgets
 - **Method Chaining**: Combine multiple prompts and assertions in a single test flow
 - **Extensible**: Build on Microsoft.Extensions.AI abstractions for maximum flexibility
 
@@ -246,6 +248,37 @@ await builder
 
 For more detailed information and examples, see the [Function Calling Guide](docs/function-calling-guide.md).
 
+### Reliability Evaluation
+
+LLMs are non-deterministic — the same prompt can produce different outputs on each call. Use `AssertReliablyAsync` to run a test multiple times and assert that it passes at a minimum rate:
+
+```csharp
+var result = await builder
+    .WithPrompt("What is the capital of France?")
+    .ShouldContainResponse("Paris")
+    .AssertReliablyAsync(runs: 10, requiredPassRate: 0.9); // 90% of runs must pass
+
+Console.WriteLine($"Passed {result.PassCount}/{result.TotalRuns} runs ({result.PassRate:P0})");
+```
+
+If the pass rate falls below the threshold, a `DetesterException` is thrown with per-run failure details.
+
+### Performance Assertions
+
+Assert that the AI responds within a time budget and stays within token limits:
+
+```csharp
+await builder
+    .WithPrompt("Summarize in one sentence")
+    .ShouldContainResponse("summary")
+    .ShouldRespondWithin(TimeSpan.FromSeconds(10))     // max latency per prompt
+    .ShouldUseTokensUnder(500)                         // max total tokens (input + output)
+    .ShouldUseCompletionTokensUnder(200)               // max output tokens only
+    .AssertAsync();
+```
+
+> **Note:** Token assertions only evaluate when the AI provider returns usage details in the response.
+
 ## Error Handling
 
 Detester throws `DetesterException` when:
@@ -254,6 +287,9 @@ Detester throws `DetesterException` when:
 - None of the OR alternatives are found in the response
 - Expected function call is not found
 - JSON deserialization fails or validation fails
+- Response latency exceeds `ShouldRespondWithin` limit
+- Token usage exceeds `ShouldUseTokensUnder` or `ShouldUseCompletionTokensUnder` limit
+- Pass rate in `AssertReliablyAsync` falls below the required threshold
 
 Detester throws `InvalidOperationException` when:
 - `OrShouldContainResponse` is called without a prior assertion

@@ -23,6 +23,9 @@ public class DetesterBuilder : IDetesterBuilder
     private readonly List<FunctionCallExpectation> expectedFunctionCalls = [];
     private readonly List<JsonExpectation> jsonExpectations = [];
     private string? instruction;
+    private TimeSpan? maxLatency;
+    private int? maxTotalTokens;
+    private int? maxCompletionTokens;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DetesterBuilder"/> class.
@@ -352,6 +355,42 @@ public class DetesterBuilder : IDetesterBuilder
     }
 
     /// <inheritdoc/>
+    public IDetesterBuilder ShouldRespondWithin(TimeSpan maxLatency)
+    {
+        if (maxLatency <= TimeSpan.Zero)
+        {
+            throw new ArgumentException("Max latency must be greater than zero.", nameof(maxLatency));
+        }
+
+        this.maxLatency = maxLatency;
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldUseTokensUnder(int maxTokens)
+    {
+        if (maxTokens <= 0)
+        {
+            throw new ArgumentException("Max tokens must be greater than zero.", nameof(maxTokens));
+        }
+
+        this.maxTotalTokens = maxTokens;
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldUseCompletionTokensUnder(int maxTokens)
+    {
+        if (maxTokens <= 0)
+        {
+            throw new ArgumentException("Max tokens must be greater than zero.", nameof(maxTokens));
+        }
+
+        this.maxCompletionTokens = maxTokens;
+        return this;
+    }
+
+    /// <inheritdoc/>
     public async Task AssertAsync(CancellationToken cancellationToken = default)
     {
         await DoAssertAsync(mainChatOptions, cancellationToken);
@@ -361,6 +400,48 @@ public class DetesterBuilder : IDetesterBuilder
     public async Task AssertAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default)
     {
         await DoAssertAsync(chatOptions ?? mainChatOptions, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public async Task<ReliabilityResult> AssertReliablyAsync(int runs, double requiredPassRate, CancellationToken cancellationToken = default)
+    {
+        if (runs <= 0)
+        {
+            throw new ArgumentException("Runs must be greater than zero.", nameof(runs));
+        }
+
+        if (requiredPassRate < 0 || requiredPassRate > 1)
+        {
+            throw new ArgumentException("Required pass rate must be between 0.0 and 1.0.", nameof(requiredPassRate));
+        }
+
+        var failures = new List<string>();
+        var passCount = 0;
+
+        for (var i = 0; i < runs; i++)
+        {
+            try
+            {
+                await DoAssertAsync(mainChatOptions, cancellationToken);
+                passCount++;
+            }
+            catch (DetesterException ex)
+            {
+                failures.Add($"Run {i + 1}: {ex.Message}");
+            }
+        }
+
+        var passRate = (double)passCount / runs;
+        var result = new ReliabilityResult(passCount, runs - passCount, passRate, failures);
+
+        if (passRate < requiredPassRate)
+        {
+            throw new DetesterException(
+                $"Reliability check failed: {passCount}/{runs} runs passed ({passRate:P0}), " +
+                $"but {requiredPassRate:P0} was required. Failures:{Environment.NewLine}{string.Join(Environment.NewLine, failures)}");
+        }
+
+        return result;
     }
 
     private static bool ParametersMatch(
@@ -458,11 +539,39 @@ public class DetesterBuilder : IDetesterBuilder
         {
             chatHistory.Add(new ChatMessage(ChatRole.User, prompt));
 
+            var sw = System.Diagnostics.Stopwatch.StartNew();
             var response = await chatClient.GetResponseAsync(chatHistory, chatOptions, cancellationToken: cancellationToken);
+            sw.Stop();
 
             if (response?.Text == null)
             {
                 throw new DetesterException($"Received null response for prompt: {prompt}");
+            }
+
+            if (maxLatency.HasValue && sw.Elapsed > maxLatency.Value)
+            {
+                throw new DetesterException(
+                    $"Response time {sw.Elapsed.TotalMilliseconds:F0}ms exceeded the maximum allowed latency of {maxLatency.Value.TotalMilliseconds:F0}ms for prompt: {prompt}");
+            }
+
+            if (maxTotalTokens.HasValue)
+            {
+                var totalTokens = response.Usage?.TotalTokenCount;
+                if (totalTokens.HasValue && totalTokens.Value > maxTotalTokens.Value)
+                {
+                    throw new DetesterException(
+                        $"Total token usage {totalTokens.Value} exceeded the maximum of {maxTotalTokens.Value} for prompt: {prompt}");
+                }
+            }
+
+            if (maxCompletionTokens.HasValue)
+            {
+                var completionTokens = response.Usage?.OutputTokenCount;
+                if (completionTokens.HasValue && completionTokens.Value > maxCompletionTokens.Value)
+                {
+                    throw new DetesterException(
+                        $"Completion token usage {completionTokens.Value} exceeded the maximum of {maxCompletionTokens.Value} for prompt: {prompt}");
+                }
             }
 
             chatHistory.Add(new ChatMessage(ChatRole.Assistant, response.Text));

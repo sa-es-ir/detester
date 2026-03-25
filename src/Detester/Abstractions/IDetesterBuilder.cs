@@ -143,6 +143,30 @@ public interface IDetesterBuilder
     IDetesterBuilder ShouldCallFunctionWithParameters(string functionName, IDictionary<string, object?> expectedParameters);
 
     /// <summary>
+    /// Asserts that the AI responds within the specified time limit.
+    /// The check applies to each individual prompt's response time.
+    /// </summary>
+    /// <param name="maxLatency">The maximum allowed response time per prompt.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldRespondWithin(TimeSpan maxLatency);
+
+    /// <summary>
+    /// Asserts that the total token usage (input + output) for the response is under the specified limit.
+    /// Only evaluated when the AI provider returns usage details.
+    /// </summary>
+    /// <param name="maxTokens">The maximum number of total tokens allowed.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldUseTokensUnder(int maxTokens);
+
+    /// <summary>
+    /// Asserts that the completion (output) token usage is under the specified limit.
+    /// Only evaluated when the AI provider returns usage details.
+    /// </summary>
+    /// <param name="maxTokens">The maximum number of completion tokens allowed.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldUseCompletionTokensUnder(int maxTokens);
+
+    /// <summary>
     /// Asserts the test asynchronously by executing the configured prompts and validating responses.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
@@ -157,4 +181,21 @@ public interface IDetesterBuilder
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task AssertAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Runs the test multiple times and asserts that it passes at least the specified fraction of runs.
+    /// Use this to verify that the AI responds consistently — accounting for the non-deterministic
+    /// nature of language models.
+    /// </summary>
+    /// <param name="runs">The number of times to execute the test. Must be greater than zero.</param>
+    /// <param name="requiredPassRate">
+    /// The minimum fraction of runs that must pass, as a value between 0.0 and 1.0.
+    /// For example, 0.9 means at least 90% of runs must pass all assertions.
+    /// </param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>
+    /// A <see cref="ReliabilityResult"/> with pass/fail counts, pass rate, and failure details.
+    /// Throws <see cref="DetesterException"/> if the pass rate falls below <paramref name="requiredPassRate"/>.
+    /// </returns>
+    Task<ReliabilityResult> AssertReliablyAsync(int runs, double requiredPassRate, CancellationToken cancellationToken = default);
 }
