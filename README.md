@@ -10,8 +10,6 @@
 
 Detester is a .NET library that enables you to write deterministic tests for AI-powered applications. It provides a fluent builder API for testing AI responses, ensuring consistency and reliability in your AI integrations.
 
-## Thank you for giving a ⭐ to this repo!
-
 ## Features
 
 - **Fluent Builder API**: Chain multiple prompts and assertions in a readable, intuitive way
