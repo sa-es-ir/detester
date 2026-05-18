@@ -10,25 +10,6 @@ using Microsoft.Extensions.AI;
 /// </summary>
 public class DetesterDatasetTests
 {
-    private static CallbackMockChatClient EchoExpectedClient()
-    {
-        return new CallbackMockChatClient(messages =>
-        {
-            var lastUser = messages.Last(m => m.Role == ChatRole.User).Text ?? string.Empty;
-            if (lastUser.Contains("France", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Paris";
-            }
-
-            if (lastUser.Contains("Germany", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Berlin";
-            }
-
-            return "unknown";
-        });
-    }
-
     [Fact]
     public async Task EvaluateAsync_AllCasesPass_ReturnsFullPassRate()
     {
@@ -111,5 +92,24 @@ public class DetesterDatasetTests
             TestContext.Current.CancellationToken);
 
         Assert.Equal(1.0, result.PassRate);
+    }
+
+    private static CallbackMockChatClient EchoExpectedClient()
+    {
+        return new CallbackMockChatClient(messages =>
+        {
+            var lastUser = messages.Last(m => m.Role == ChatRole.User).Text ?? string.Empty;
+            if (lastUser.Contains("France", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Paris";
+            }
+
+            if (lastUser.Contains("Germany", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Berlin";
+            }
+
+            return "unknown";
+        });
     }
 }

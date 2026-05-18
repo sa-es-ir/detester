@@ -48,7 +48,6 @@ public class ReliabilityAndPerformanceTests : IClassFixture<AzureOpenAIChatClien
     // -------------------------------------------------------------------------
     // ShouldUseTokensUnder
     // -------------------------------------------------------------------------
-
     [Fact]
     public async Task ShouldUseTokensUnder_GenerousLimit_Passes()
     {

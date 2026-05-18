@@ -13,7 +13,6 @@ public class DetesterBuilderReliabilityAndPerformanceTests
     // -------------------------------------------------------------------------
     // ShouldRespondWithin – input validation
     // -------------------------------------------------------------------------
-
     [Fact]
     public void ShouldRespondWithin_WithZeroTimeSpan_ThrowsArgumentException()
     {
@@ -49,7 +48,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         await builder
             .WithPrompt("Hello")
             .ShouldRespondWithin(TimeSpan.FromSeconds(10))
-            .AssertAsync();
+            .AssertAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -62,13 +61,12 @@ public class DetesterBuilderReliabilityAndPerformanceTests
             builder
                 .WithPrompt("Hello")
                 .ShouldRespondWithin(TimeSpan.FromMilliseconds(50))
-                .AssertAsync());
+                .AssertAsync(TestContext.Current.CancellationToken));
     }
 
     // -------------------------------------------------------------------------
     // ShouldUseTokensUnder – input validation
     // -------------------------------------------------------------------------
-
     [Fact]
     public void ShouldUseTokensUnder_WithZero_ThrowsArgumentException()
     {
@@ -104,7 +102,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         await builder
             .WithPrompt("Hello")
             .ShouldUseTokensUnder(100)
-            .AssertAsync();
+            .AssertAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -119,7 +117,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         await new DetesterBuilder(mockClient)
             .WithPrompt("Hello")
             .ShouldUseTokensUnder(100)
-            .AssertAsync();
+            .AssertAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -135,13 +133,12 @@ public class DetesterBuilderReliabilityAndPerformanceTests
             new DetesterBuilder(mockClient)
                 .WithPrompt("Hello")
                 .ShouldUseTokensUnder(100)
-                .AssertAsync());
+                .AssertAsync(TestContext.Current.CancellationToken));
     }
 
     // -------------------------------------------------------------------------
     // ShouldUseCompletionTokensUnder – input validation
     // -------------------------------------------------------------------------
-
     [Fact]
     public void ShouldUseCompletionTokensUnder_WithZero_ThrowsArgumentException()
     {
@@ -180,7 +177,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         await new DetesterBuilder(mockClient)
             .WithPrompt("Hello")
             .ShouldUseCompletionTokensUnder(100)
-            .AssertAsync();
+            .AssertAsync(TestContext.Current.CancellationToken);
     }
 
     [Fact]
@@ -196,13 +193,12 @@ public class DetesterBuilderReliabilityAndPerformanceTests
             new DetesterBuilder(mockClient)
                 .WithPrompt("Hello")
                 .ShouldUseCompletionTokensUnder(100)
-                .AssertAsync());
+                .AssertAsync(TestContext.Current.CancellationToken));
     }
 
     // -------------------------------------------------------------------------
     // AssertReliablyAsync – input validation
     // -------------------------------------------------------------------------
-
     [Fact]
     public async Task AssertReliablyAsync_WithZeroRuns_ThrowsArgumentException()
     {
@@ -210,7 +206,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         builder.WithPrompt("Hello");
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            builder.AssertReliablyAsync(runs: 0, requiredPassRate: 0.9));
+            builder.AssertReliablyAsync(runs: 0, requiredPassRate: 0.9, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -220,7 +216,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         builder.WithPrompt("Hello");
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            builder.AssertReliablyAsync(runs: -1, requiredPassRate: 0.9));
+            builder.AssertReliablyAsync(runs: -1, requiredPassRate: 0.9, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -230,7 +226,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         builder.WithPrompt("Hello");
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            builder.AssertReliablyAsync(runs: 5, requiredPassRate: 1.1));
+            builder.AssertReliablyAsync(runs: 5, requiredPassRate: 1.1, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -240,13 +236,12 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         builder.WithPrompt("Hello");
 
         await Assert.ThrowsAsync<ArgumentException>(() =>
-            builder.AssertReliablyAsync(runs: 5, requiredPassRate: -0.1));
+            builder.AssertReliablyAsync(runs: 5, requiredPassRate: -0.1, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     // -------------------------------------------------------------------------
     // AssertReliablyAsync – behavior
     // -------------------------------------------------------------------------
-
     [Fact]
     public async Task AssertReliablyAsync_WhenAllRunsPass_ReturnsFullPassRate()
     {
@@ -255,7 +250,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         var result = await new DetesterBuilder(mockClient)
             .WithPrompt("What is the capital of France?")
             .ShouldContainResponse("Paris")
-            .AssertReliablyAsync(runs: 5, requiredPassRate: 1.0);
+            .AssertReliablyAsync(runs: 5, requiredPassRate: 1.0, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(5, result.PassCount);
         Assert.Equal(0, result.FailCount);
@@ -273,7 +268,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
             new DetesterBuilder(mockClient)
                 .WithPrompt("What is the capital of France?")
                 .ShouldContainResponse("Paris")
-                .AssertReliablyAsync(runs: 3, requiredPassRate: 0.5));
+                .AssertReliablyAsync(runs: 3, requiredPassRate: 0.5, cancellationToken: TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -289,7 +284,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
         var result = await new DetesterBuilder(alternatingClient)
             .WithPrompt("Capital?")
             .ShouldContainResponse("Paris")
-            .AssertReliablyAsync(runs: 4, requiredPassRate: 0.5);
+            .AssertReliablyAsync(runs: 4, requiredPassRate: 0.5, cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(4, result.TotalRuns);
         Assert.Equal(2, result.PassCount);
@@ -307,7 +302,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
             new DetesterBuilder(mockClient)
                 .WithPrompt("Capital?")
                 .ShouldContainResponse("Paris")
-                .AssertReliablyAsync(runs: 2, requiredPassRate: 0.5));
+                .AssertReliablyAsync(runs: 2, requiredPassRate: 0.5, cancellationToken: TestContext.Current.CancellationToken));
 
         Assert.Contains("0/2 runs passed", ex.Message);
     }
@@ -323,7 +318,7 @@ public class DetesterBuilderReliabilityAndPerformanceTests
             await new DetesterBuilder(mockClient)
                 .WithPrompt("Capital?")
                 .ShouldContainResponse("Paris")
-                .AssertReliablyAsync(runs: 3, requiredPassRate: 1.0);
+                .AssertReliablyAsync(runs: 3, requiredPassRate: 1.0, cancellationToken: TestContext.Current.CancellationToken);
         }
         catch (DetesterException ex)
         {
@@ -339,7 +334,6 @@ public class DetesterBuilderReliabilityAndPerformanceTests
     // -------------------------------------------------------------------------
     // ReliabilityResult – record properties
     // -------------------------------------------------------------------------
-
     [Fact]
     public void ReliabilityResult_TotalRuns_IsSumOfPassAndFail()
     {

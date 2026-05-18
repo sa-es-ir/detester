@@ -11,25 +11,6 @@ using Microsoft.Extensions.AI;
 /// </summary>
 public class DetesterBuilderScopingTests
 {
-    private static CallbackMockChatClient CapitalsClient()
-    {
-        return new CallbackMockChatClient(messages =>
-        {
-            var lastUser = messages.Last(m => m.Role == ChatRole.User).Text ?? string.Empty;
-            if (lastUser.Contains("France", StringComparison.OrdinalIgnoreCase))
-            {
-                return "The capital of France is Paris.";
-            }
-
-            if (lastUser.Contains("Germany", StringComparison.OrdinalIgnoreCase))
-            {
-                return "The capital of Germany is Berlin.";
-            }
-
-            return "I don't know.";
-        });
-    }
-
     [Fact]
     public async Task PerPromptAssertions_BindToTheirOwnPrompt_Passes()
     {
@@ -107,5 +88,24 @@ public class DetesterBuilderScopingTests
         Assert.False(germany.Passed);
         Assert.Contains(germany.Assertions, a => !a.Passed && a.Description == "ShouldContainResponse");
         Assert.Single(result.Failures);
+    }
+
+    private static CallbackMockChatClient CapitalsClient()
+    {
+        return new CallbackMockChatClient(messages =>
+        {
+            var lastUser = messages.Last(m => m.Role == ChatRole.User).Text ?? string.Empty;
+            if (lastUser.Contains("France", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The capital of France is Paris.";
+            }
+
+            if (lastUser.Contains("Germany", StringComparison.OrdinalIgnoreCase))
+            {
+                return "The capital of Germany is Berlin.";
+            }
+
+            return "I don't know.";
+        });
     }
 }
