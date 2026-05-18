@@ -46,28 +46,34 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 
 ```
 /src
-  /Detester                    - Main library with implementations
-  /Detester.Abstraction        - Interfaces and base types
+  /Detester                    - Main (and only) shipping library
+    /Abstractions              - Interfaces and base types (namespace: Detester.Abstraction)
 /test
-  /Detester.Tests              - Unit tests
+  /Detester.Tests              - Unit tests (xUnit v3, mocked IChatClient)
+  /Detester.IntegrationTests   - Integration tests (live Azure OpenAI)
 ```
+
+There is no separate `Detester.Abstraction` assembly — the interfaces live in the
+`src/Detester/Abstractions/` folder under the `Detester.Abstraction` namespace but
+ship inside the single `Detester` package.
 
 ## Key Classes and Interfaces
 
 ### Core Components
 
-- `IDetesterBuilder`: Main interface for fluent API
+- `IDetesterBuilder`: Main interface for fluent API (namespace `Detester.Abstraction`)
 - `DetesterBuilder`: Implementation of the builder pattern
-- `DetesterFactory`: Factory methods for creating builder instances
-- `DetesterOptions`: Configuration options
+- `DetesterFactory`: Factory for creating builder instances
+- `ReliabilityResult`: Result returned by `AssertReliablyAsync`
 - `DetesterException`: Custom exception type
 
 ### Factory Methods
 
-- `CreateWithOpenAI(apiKey, modelName)`: Create builder for OpenAI
-- `CreateWithAzureOpenAI(endpoint, apiKey, deploymentName)`: Create builder for Azure OpenAI
-- `Create(options)`: Create builder from options
-- `Create(chatClient)`: Create builder with custom chat client
+- `DetesterFactory.Create(IChatClient chatClient)`: Create a builder from any `IChatClient`
+
+There are no provider-specific factory helpers. Construct the provider's
+`IChatClient` yourself (e.g. via `Azure.AI.OpenAI` + `.AsIChatClient()`) and pass
+it to `DetesterFactory.Create` or `new DetesterBuilder(chatClient[, chatOptions])`.
 
 ### Builder Methods
 
@@ -98,15 +104,21 @@ Detester is a .NET library for building deterministic and reliable tests for AI 
 
 ### Building and Testing
 
+The test projects are `OutputType=Exe` (xUnit v3 / Microsoft Testing Platform).
+Run them with `dotnet run --project`, not `dotnet test` — this is what CI does.
+
 ```bash
 # Restore dependencies
 dotnet restore
 
 # Build the solution
-dotnet build
+dotnet build --no-restore
 
-# Run all tests
-dotnet test
+# Run unit tests
+dotnet run --project test/Detester.Tests/Detester.Tests.csproj
+
+# Run integration tests (requires Azure OpenAI env vars)
+dotnet run --project test/Detester.IntegrationTests/Detester.IntegrationTests.csproj
 ```
 
 ## Common Patterns
@@ -191,8 +203,8 @@ The CI pipeline:
 2. Sets up .NET 10 SDK
 3. Restores dependencies with `dotnet restore`
 4. Builds with `dotnet build --no-restore`
-5. Runs tests with `dotnet test --no-build --verbosity normal`
-6. (Optional) Packs on release branches
+5. Runs unit tests via `dotnet run --project test/Detester.Tests/Detester.Tests.csproj --no-build --verbosity normal`
+6. Runs integration tests via `dotnet run --project test/Detester.IntegrationTests/Detester.IntegrationTests.csproj` with `AzureOpenAI__*` secrets in the environment
 
 ### Running CI Locally
 
@@ -200,7 +212,8 @@ To replicate CI locally:
 ```bash
 dotnet restore
 dotnet build --no-restore
-dotnet test --no-build --verbosity normal
+dotnet run --project test/Detester.Tests/Detester.Tests.csproj --no-build --verbosity normal
+dotnet run --project test/Detester.IntegrationTests/Detester.IntegrationTests.csproj --no-build --verbosity normal
 ```
 
 ## Security Best Practices
@@ -240,13 +253,12 @@ dotnet test --no-build --verbosity normal
 
 **Dependency Issues:**
 - Run `dotnet restore` to update packages
-- Check for version conflicts in `.csproj` files
+- Package versions are centralized in `Directory.Packages.props`, not `.csproj` files
 - Ensure `Microsoft.Extensions.AI` version compatibility
 
 ### Debug Tips
 
-- Use `dotnet test --logger "console;verbosity=detailed"` for detailed test output
-- Enable debug logging in tests with appropriate verbosity
+- Use `dotnet run --project test/Detester.Tests/Detester.Tests.csproj -- --verbosity detailed` for detailed test output
 - Use breakpoints in test methods to inspect builder state
 - Review actual vs expected responses in assertion failures
 
@@ -258,19 +270,16 @@ dotnet test --no-build --verbosity normal
 dotnet restore
 
 # Build solution
-dotnet build
+dotnet build --no-restore
 
 # Build in Release mode
 dotnet build -c Release
 
-# Run all tests
-dotnet test
+# Run unit tests
+dotnet run --project test/Detester.Tests/Detester.Tests.csproj
 
-# Run tests with detailed output
-dotnet test --logger "console;verbosity=detailed"
-
-# Run specific test
-dotnet test --filter "FullyQualifiedName~TestMethodName"
+# Run a specific test (Microsoft Testing Platform filter)
+dotnet run --project test/Detester.Tests/Detester.Tests.csproj -- --filter-method "Detester.Tests.DetesterBuilderTests.TestMethodName"
 ```
 
 ### Code Quality
@@ -286,12 +295,16 @@ dotnet format
 ```
 
 ### Package Management
-```bash
-# Add package to specific project
-dotnet add src/Detester/Detester.csproj package PackageName
 
-# Update package
-dotnet add package PackageName
+This repo uses **central package management** (`Directory.Packages.props` with
+`ManagePackageVersionsCentrally=true`). Package versions are defined once there,
+not in individual `.csproj` files.
+
+```bash
+# 1. Add the version to Directory.Packages.props:
+#    <PackageVersion Include="PackageName" Version="X.Y.Z" />
+# 2. Reference it (no Version attribute) in the target project:
+dotnet add src/Detester/Detester.csproj package PackageName --no-restore
 
 # List packages
 dotnet list package
@@ -303,7 +316,7 @@ The project uses semantic versioning (SemVer). Current version is tracked via gi
 
 - Stable 1.0.0 release aligns with .NET 10 LTS timeframe
 - Preview versions follow the pattern: `v1.0.0-preview.X`
-- Always update version numbers in `.csproj` files before release
+- Update the package `<Version>` in `src/Detester/Detester.csproj` before release
 - Tag releases with `git tag -a vX.Y.Z -m "Release version X.Y.Z"`
 - Consider generating NuGet package via `dotnet pack` in CI for tagged releases
 
@@ -316,14 +329,15 @@ detester/                             - Project root
 │   └── workflows/
 │       └── ci.yml                    - CI/CD pipeline
 ├── src/
-│   ├── Detester/                     - Main implementation
-│   └── Detester.Abstraction/         - Interfaces and abstractions
+│   └── Detester/                     - Main (and only) shipping library
+│       └── Abstractions/             - Interfaces (namespace Detester.Abstraction)
 ├── test/
-│   └── Detester.Tests/               - Unit and integration tests
+│   ├── Detester.Tests/               - Unit tests (mocked IChatClient)
+│   └── Detester.IntegrationTests/    - Integration tests (live Azure OpenAI)
 ├── docs/
 │   └── function-calling-guide.md     - Function calling documentation
 ├── Detester.sln                      - Solution file
 ├── Directory.Build.props             - Shared MSBuild properties
-├── Directory.Build.targets           - Shared MSBuild targets
+├── Directory.Packages.props          - Central package versions
 ├── stylecop.json                     - StyleCop configuration
 └── README.md                         - Main documentation
