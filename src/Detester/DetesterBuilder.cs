@@ -11,21 +11,14 @@ public class DetesterBuilder : IDetesterBuilder
 {
     private readonly IChatClient chatClient;
     private readonly ChatOptions? mainChatOptions;
-    private readonly List<string> prompts = [];
-    private readonly List<string> expectedResponses = [];
-    private readonly List<List<string>> orResponseGroups = [];
-    private readonly List<string> unexpectedResponses = [];
-    private readonly List<string> unexpectedAnyResponses = [];
-    private readonly List<string> regexPatterns = [];
-    private readonly List<string> containAllSubstrings = [];
-    private readonly List<List<string>> containAnyGroups = [];
-    private readonly List<EqualityExpectation> equalityExpectations = [];
-    private readonly List<FunctionCallExpectation> expectedFunctionCalls = [];
-    private readonly List<JsonExpectation> jsonExpectations = [];
+    private readonly List<PromptStep> steps = [];
+    private PromptStep? pendingStep;
     private string? instruction;
     private TimeSpan? maxLatency;
     private int? maxTotalTokens;
     private int? maxCompletionTokens;
+    private IEmbeddingGenerator<string, Embedding<float>>? embeddingGenerator;
+    private IChatClient? judge;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DetesterBuilder"/> class.
@@ -64,30 +57,7 @@ public class DetesterBuilder : IDetesterBuilder
     /// <inheritdoc/>
     public IDetesterBuilder WithInstructionFromFile(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            throw new ArgumentException("File path cannot be null or whitespace.", nameof(filePath));
-        }
-
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        if (extension != ".md" && extension != ".txt")
-        {
-            throw new ArgumentException("File must be a markdown (.md) or text (.txt) file.", nameof(filePath));
-        }
-
-        if (!File.Exists(filePath))
-        {
-            throw new FileNotFoundException($"File not found: {filePath}", filePath);
-        }
-
-        var content = File.ReadAllText(filePath);
-
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            throw new ArgumentException("File content cannot be empty or whitespace.", nameof(filePath));
-        }
-
-        this.instruction = content;
+        this.instruction = ReadTextFile(filePath);
         return this;
     }
 
@@ -99,37 +69,14 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentException("Prompt cannot be null or whitespace.", nameof(prompt));
         }
 
-        prompts.Add(prompt);
+        AddPromptStep(prompt);
         return this;
     }
 
     /// <inheritdoc/>
     public IDetesterBuilder WithPromptFromFile(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath))
-        {
-            throw new ArgumentException("File path cannot be null or whitespace.", nameof(filePath));
-        }
-
-        var extension = Path.GetExtension(filePath).ToLowerInvariant();
-        if (extension != ".md" && extension != ".txt")
-        {
-            throw new ArgumentException("File must be a markdown (.md) or text (.txt) file.", nameof(filePath));
-        }
-
-        if (!File.Exists(filePath))
-        {
-            throw new FileNotFoundException($"File not found: {filePath}", filePath);
-        }
-
-        var content = File.ReadAllText(filePath);
-
-        if (string.IsNullOrWhiteSpace(content))
-        {
-            throw new ArgumentException("File content cannot be empty or whitespace.", nameof(filePath));
-        }
-
-        prompts.Add(content);
+        AddPromptStep(ReadTextFile(filePath));
         return this;
     }
 
@@ -148,7 +95,7 @@ public class DetesterBuilder : IDetesterBuilder
                 throw new ArgumentException("Individual prompts cannot be null or whitespace.", nameof(prompts));
             }
 
-            this.prompts.Add(prompt);
+            AddPromptStep(prompt);
         }
 
         return this;
@@ -162,7 +109,7 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentException("Expected text cannot be null or whitespace.", nameof(expectedText));
         }
 
-        expectedResponses.Add(expectedText);
+        GetCurrentStep().ExpectedResponses.Add(expectedText);
         return this;
     }
 
@@ -174,7 +121,7 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentException("Unexpected text cannot be null or whitespace.", nameof(unexpectedText));
         }
 
-        unexpectedResponses.Add(unexpectedText);
+        GetCurrentStep().UnexpectedResponses.Add(unexpectedText);
         return this;
     }
 
@@ -193,7 +140,7 @@ public class DetesterBuilder : IDetesterBuilder
                 throw new ArgumentException("Individual unexpected texts cannot be null or whitespace.", nameof(unexpectedTexts));
             }
 
-            unexpectedAnyResponses.Add(text);
+            GetCurrentStep().UnexpectedAnyResponses.Add(text);
         }
 
         return this;
@@ -207,7 +154,7 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentException("Pattern cannot be null or whitespace.", nameof(pattern));
         }
 
-        regexPatterns.Add(pattern);
+        GetCurrentStep().RegexPatterns.Add(pattern);
         return this;
     }
 
@@ -232,7 +179,7 @@ public class DetesterBuilder : IDetesterBuilder
                 throw new ArgumentException("Individual expected substrings cannot be null or whitespace.", nameof(expectedSubstrings));
             }
 
-            containAllSubstrings.Add(substring);
+            GetCurrentStep().ContainAllSubstrings.Add(substring);
         }
 
         return this;
@@ -258,7 +205,7 @@ public class DetesterBuilder : IDetesterBuilder
             group.Add(substring);
         }
 
-        containAnyGroups.Add(group);
+        GetCurrentStep().ContainAnyGroups.Add(group);
         return this;
     }
 
@@ -270,7 +217,7 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentNullException(nameof(expected));
         }
 
-        equalityExpectations.Add(new EqualityExpectation
+        GetCurrentStep().EqualityExpectations.Add(new EqualityExpectation
         {
             Expected = expected,
             Comparison = comparison,
@@ -287,23 +234,22 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentException("Expected text cannot be null or whitespace.", nameof(expectedText));
         }
 
-        // If there are no existing expectations, treat this as a new OR group
-        if (expectedResponses.Count == 0 && orResponseGroups.Count == 0)
+        var step = GetCurrentStep();
+
+        if (step.ExpectedResponses.Count == 0 && step.OrResponseGroups.Count == 0)
         {
             throw new InvalidOperationException("OrShouldContainResponse must be called after ShouldContainResponse or another OrShouldContainResponse.");
         }
 
-        // If the last expectation was an AND (in expectedResponses), move it to a new OR group
-        if (expectedResponses.Count > 0)
+        if (step.ExpectedResponses.Count > 0)
         {
-            var lastExpectation = expectedResponses[expectedResponses.Count - 1];
-            expectedResponses.RemoveAt(expectedResponses.Count - 1);
-            orResponseGroups.Add(new List<string> { lastExpectation, expectedText });
+            var lastExpectation = step.ExpectedResponses[step.ExpectedResponses.Count - 1];
+            step.ExpectedResponses.RemoveAt(step.ExpectedResponses.Count - 1);
+            step.OrResponseGroups.Add(new List<string> { lastExpectation, expectedText });
         }
         else
         {
-            // Add to the last OR group
-            orResponseGroups[orResponseGroups.Count - 1].Add(expectedText);
+            step.OrResponseGroups[step.OrResponseGroups.Count - 1].Add(expectedText);
         }
 
         return this;
@@ -317,7 +263,7 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentException("Function name cannot be null or whitespace.", nameof(functionName));
         }
 
-        expectedFunctionCalls.Add(new FunctionCallExpectation { FunctionName = functionName });
+        GetCurrentStep().ExpectedFunctionCalls.Add(new FunctionCallExpectation { FunctionName = functionName });
         return this;
     }
 
@@ -334,23 +280,82 @@ public class DetesterBuilder : IDetesterBuilder
             throw new ArgumentNullException(nameof(expectedParameters));
         }
 
-        expectedFunctionCalls.Add(new FunctionCallExpectation
+        GetCurrentStep().ExpectedFunctionCalls.Add(new FunctionCallExpectation
         {
             FunctionName = functionName,
-            ExpectedParameters = expectedParameters
+            ExpectedParameters = expectedParameters,
         });
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldNotCallFunction(string functionName)
+    {
+        if (string.IsNullOrWhiteSpace(functionName))
+        {
+            throw new ArgumentException("Function name cannot be null or whitespace.", nameof(functionName));
+        }
+
+        GetCurrentStep().NotExpectedFunctionCalls.Add(functionName);
         return this;
     }
 
     /// <inheritdoc/>
     public IDetesterBuilder ShouldHaveJsonOfType<T>(JsonSerializerOptions? options = null, Func<T, bool>? validator = null)
     {
-        jsonExpectations.Add(new JsonExpectation
+        GetCurrentStep().JsonExpectations.Add(new JsonExpectation
         {
             TargetType = typeof(T),
             Options = options,
-            Validator = validator
+            Validator = validator,
         });
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder WithEmbeddingGenerator(IEmbeddingGenerator<string, Embedding<float>> generator)
+    {
+        this.embeddingGenerator = generator ?? throw new ArgumentNullException(nameof(generator));
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder WithJudge(IChatClient judge)
+    {
+        this.judge = judge ?? throw new ArgumentNullException(nameof(judge));
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldBeSemanticallySimilarTo(string expected, double minScore = 0.8)
+    {
+        if (string.IsNullOrWhiteSpace(expected))
+        {
+            throw new ArgumentException("Expected text cannot be null or whitespace.", nameof(expected));
+        }
+
+        if (minScore < -1d || minScore > 1d)
+        {
+            throw new ArgumentException("Minimum similarity score must be between -1.0 and 1.0.", nameof(minScore));
+        }
+
+        GetCurrentStep().SemanticExpectations.Add(new SemanticExpectation
+        {
+            Expected = expected,
+            MinScore = minScore,
+        });
+        return this;
+    }
+
+    /// <inheritdoc/>
+    public IDetesterBuilder ShouldSatisfy(string criteria)
+    {
+        if (string.IsNullOrWhiteSpace(criteria))
+        {
+            throw new ArgumentException("Criteria cannot be null or whitespace.", nameof(criteria));
+        }
+
+        GetCurrentStep().JudgeExpectations.Add(new JudgeExpectation { Criteria = criteria });
         return this;
     }
 
@@ -393,13 +398,40 @@ public class DetesterBuilder : IDetesterBuilder
     /// <inheritdoc/>
     public async Task AssertAsync(CancellationToken cancellationToken = default)
     {
-        await DoAssertAsync(mainChatOptions, cancellationToken);
+        await AssertAsync(mainChatOptions, cancellationToken);
     }
 
     /// <inheritdoc/>
     public async Task AssertAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default)
     {
-        await DoAssertAsync(chatOptions ?? mainChatOptions, cancellationToken);
+        var result = await EvaluateInternalAsync(chatOptions ?? mainChatOptions, cancellationToken);
+
+        if (!result.Passed)
+        {
+            var failed = result.Prompts
+                .SelectMany(p => p.Assertions)
+                .Where(a => !a.Passed)
+                .ToList();
+
+            var message = string.Join(Environment.NewLine, failed.Select(a => a.FailureMessage));
+            var inner = failed.Select(a => a.Exception).FirstOrDefault(e => e is not null);
+
+            throw inner is null
+                ? new DetesterException(message)
+                : new DetesterException(message, inner);
+        }
+    }
+
+    /// <inheritdoc/>
+    public Task<EvaluationResult> EvaluateAsync(CancellationToken cancellationToken = default)
+    {
+        return EvaluateInternalAsync(mainChatOptions, cancellationToken);
+    }
+
+    /// <inheritdoc/>
+    public Task<EvaluationResult> EvaluateAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default)
+    {
+        return EvaluateInternalAsync(chatOptions ?? mainChatOptions, cancellationToken);
     }
 
     /// <inheritdoc/>
@@ -420,28 +452,72 @@ public class DetesterBuilder : IDetesterBuilder
 
         for (var i = 0; i < runs; i++)
         {
+            bool passed;
+            IReadOnlyList<string> runFailures;
+
             try
             {
-                await DoAssertAsync(mainChatOptions, cancellationToken);
-                passCount++;
+                var result = await EvaluateInternalAsync(mainChatOptions, cancellationToken);
+                passed = result.Passed;
+                runFailures = result.Failures;
             }
             catch (DetesterException ex)
             {
-                failures.Add($"Run {i + 1}: {ex.Message}");
+                passed = false;
+                runFailures = [ex.Message];
+            }
+
+            if (passed)
+            {
+                passCount++;
+            }
+            else
+            {
+                var joined = string.Join(" | ", runFailures);
+                failures.Add($"Run {i + 1}: {joined}");
             }
         }
 
         var passRate = (double)passCount / runs;
-        var result = new ReliabilityResult(passCount, runs - passCount, passRate, failures);
+        var reliabilityResult = new ReliabilityResult(passCount, runs - passCount, passRate, failures);
 
         if (passRate < requiredPassRate)
         {
+            var joinedFailures = string.Join(Environment.NewLine, failures);
             throw new DetesterException(
                 $"Reliability check failed: {passCount}/{runs} runs passed ({passRate:P0}), " +
-                $"but {requiredPassRate:P0} was required. Failures:{Environment.NewLine}{string.Join(Environment.NewLine, failures)}");
+                $"but {requiredPassRate:P0} was required. Failures:{Environment.NewLine}{joinedFailures}");
         }
 
-        return result;
+        return reliabilityResult;
+    }
+
+    private static string ReadTextFile(string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException("File path cannot be null or whitespace.", nameof(filePath));
+        }
+
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        if (extension != ".md" && extension != ".txt")
+        {
+            throw new ArgumentException("File must be a markdown (.md) or text (.txt) file.", nameof(filePath));
+        }
+
+        if (!File.Exists(filePath))
+        {
+            throw new FileNotFoundException($"File not found: {filePath}", filePath);
+        }
+
+        var content = File.ReadAllText(filePath);
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            throw new ArgumentException("File content cannot be empty or whitespace.", nameof(filePath));
+        }
+
+        return content;
     }
 
     private static bool ParametersMatch(
@@ -455,7 +531,6 @@ public class DetesterBuilder : IDetesterBuilder
 
         if (actual.Count == 1 && actual.ContainsKey("request"))
         {
-            // Serialize to a JsonElement so we can query properties
             var element = JsonSerializer.SerializeToElement(actual["request"]);
             foreach (var kvp in expected)
             {
@@ -476,7 +551,6 @@ public class DetesterBuilder : IDetesterBuilder
             return true;
         }
 
-        // Fallback: compare top-level keys/values normally
         if (actual.Count != expected.Count)
         {
             return false;
@@ -498,60 +572,398 @@ public class DetesterBuilder : IDetesterBuilder
         return true;
     }
 
-    private static bool ValuesEqual(object? actual, object? expected)
+    private static double CosineSimilarity(float[] a, float[] b)
     {
-        if (actual == null && expected == null)
+        if (a.Length != b.Length || a.Length == 0)
         {
-            return true;
+            return 0d;
         }
 
-        if (actual == null || expected == null)
+        double dot = 0d;
+        double normA = 0d;
+        double normB = 0d;
+
+        for (var i = 0; i < a.Length; i++)
         {
-            return false;
+            dot += a[i] * (double)b[i];
+            normA += a[i] * (double)a[i];
+            normB += b[i] * (double)b[i];
         }
 
-        // Handle string comparison case-insensitively
-        if (actual is string actualStr && expected is string expectedStr)
+        if (normA == 0d || normB == 0d)
         {
-            return actualStr.Equals(expectedStr, StringComparison.OrdinalIgnoreCase);
+            return 0d;
         }
 
-        // For other types, use standard equality
-        return actual.Equals(expected);
+        return dot / (Math.Sqrt(normA) * Math.Sqrt(normB));
     }
 
-    private async Task DoAssertAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default)
+    private static AssertionOutcome Pass(string description)
     {
-        if (prompts.Count == 0)
+        return new AssertionOutcome { Description = description, Passed = true };
+    }
+
+    private static AssertionOutcome Fail(string description, string message)
+    {
+        return new AssertionOutcome { Description = description, Passed = false, FailureMessage = message };
+    }
+
+    private static AssertionOutcome Fail(string description, string message, Exception exception)
+    {
+        return new AssertionOutcome
+        {
+            Description = description,
+            Passed = false,
+            FailureMessage = message,
+            Exception = exception,
+        };
+    }
+
+    private static void EvaluateTextAssertions(PromptStep step, string responseText, List<AssertionOutcome> outcomes)
+    {
+        if (step.ExpectedResponses.Count > 0)
+        {
+            var missing = step.ExpectedResponses
+                .Where(expected => !responseText.Contains(expected, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (missing.Count > 0)
+            {
+                var missingText = string.Join(", ", missing.Select(e => $"'{e}'"));
+                var message = $"Response did not contain expected text(s): {missingText}. Actual response: {responseText}";
+                outcomes.Add(Fail("ShouldContainResponse", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("ShouldContainResponse"));
+            }
+        }
+
+        if (step.UnexpectedResponses.Count > 0)
+        {
+            var violating = step.UnexpectedResponses
+                .Where(unexpected => responseText.Contains(unexpected, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (violating.Count > 0)
+            {
+                var violatingText = string.Join(", ", violating.Select(e => $"'{e}'"));
+                var message = $"Response contained unexpected text(s): {violatingText}. Actual response: {responseText}";
+                outcomes.Add(Fail("ShouldNotContainResponse", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("ShouldNotContainResponse"));
+            }
+        }
+
+        if (step.UnexpectedAnyResponses.Count > 0)
+        {
+            var violatingAny = step.UnexpectedAnyResponses
+                .Where(unexpected => responseText.Contains(unexpected, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (violatingAny.Count > 0)
+            {
+                var violatingText = string.Join(", ", violatingAny.Select(e => $"'{e}'"));
+                var message = $"Response contained one or more texts that should not appear: {violatingText}. Actual response: {responseText}";
+                outcomes.Add(Fail("ShouldNotContainAnyResponse", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("ShouldNotContainAnyResponse"));
+            }
+        }
+
+        foreach (var pattern in step.RegexPatterns)
+        {
+            if (!System.Text.RegularExpressions.Regex.IsMatch(responseText, pattern))
+            {
+                var message = $"Response did not match the required regular expression pattern '{pattern}'. Actual response: {responseText}";
+                outcomes.Add(Fail("ShouldMatchRegex", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("ShouldMatchRegex"));
+            }
+        }
+
+        if (step.ContainAllSubstrings.Count > 0)
+        {
+            var missingAll = step.ContainAllSubstrings
+                .Where(s => !responseText.Contains(s, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            if (missingAll.Count > 0)
+            {
+                var missingText = string.Join(", ", missingAll.Select(e => $"'{e}'"));
+                var message = $"Response did not contain all required substrings: {missingText}. Actual response: {responseText}";
+                outcomes.Add(Fail("ShouldContainAll", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("ShouldContainAll"));
+            }
+        }
+
+        foreach (var group in step.ContainAnyGroups)
+        {
+            var hasAny = group.Any(s => responseText.Contains(s, StringComparison.OrdinalIgnoreCase));
+            if (!hasAny)
+            {
+                var options = string.Join("' OR '", group);
+                var message = $"Response did not contain any of the required alternatives: '{options}'. Actual response: {responseText}";
+                outcomes.Add(Fail("ShouldContainAny", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("ShouldContainAny"));
+            }
+        }
+
+        foreach (var expectation in step.EqualityExpectations)
+        {
+            if (!string.Equals(responseText, expectation.Expected, expectation.Comparison))
+            {
+                var message = $"Response was not equal to the expected text. Expected: '{expectation.Expected}', Actual: '{responseText}'.";
+                outcomes.Add(Fail("ShouldBeEqualTo", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("ShouldBeEqualTo"));
+            }
+        }
+
+        foreach (var orGroup in step.OrResponseGroups)
+        {
+            var hasMatch = orGroup.Any(expected =>
+                responseText.Contains(expected, StringComparison.OrdinalIgnoreCase));
+
+            if (!hasMatch)
+            {
+                var orOptions = string.Join("' OR '", orGroup);
+                var message = $"Response did not contain any of the expected alternatives: '{orOptions}'. Actual response: {responseText}";
+                outcomes.Add(Fail("OrShouldContainResponse", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("OrShouldContainResponse"));
+            }
+        }
+    }
+
+    private static void EvaluateFunctionCalls(PromptStep step, ChatResponse response, List<AssertionOutcome> outcomes)
+    {
+        if (step.ExpectedFunctionCalls.Count == 0 && step.NotExpectedFunctionCalls.Count == 0)
+        {
+            return;
+        }
+
+        var allCalls = response.Messages
+            .Where(m => m.Role == ChatRole.Assistant)
+            .SelectMany(m => m.Contents.OfType<FunctionCallContent>())
+            .ToList();
+
+        var remaining = new List<FunctionCallContent>(allCalls);
+
+        foreach (var expectation in step.ExpectedFunctionCalls)
+        {
+            FunctionCallContent? matchedCall = null;
+
+            foreach (var functionCall in remaining)
+            {
+                if (functionCall.Name == expectation.FunctionName)
+                {
+                    if (expectation.ExpectedParameters != null)
+                    {
+                        if (ParametersMatch(functionCall.Arguments, expectation.ExpectedParameters))
+                        {
+                            matchedCall = functionCall;
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        matchedCall = functionCall;
+                        break;
+                    }
+                }
+            }
+
+            if (matchedCall == null)
+            {
+                if (remaining.Count == 0)
+                {
+                    var message = $"Expected function '{expectation.FunctionName}' to be called, but no function calls were made.";
+                    outcomes.Add(Fail("ShouldCallFunction", message));
+                    continue;
+                }
+
+                var actualFunctions = string.Join(", ", remaining.Select(f => $"'{f.Name}'"));
+
+                if (expectation.ExpectedParameters != null)
+                {
+                    var expectedParams = string.Join(", ", expectation.ExpectedParameters.Select(p => $"{p.Key}={p.Value}"));
+                    var actualParamsList = remaining
+                        .Where(f => f.Name == expectation.FunctionName)
+                        .Select(f => f.Arguments != null
+                            ? string.Join(", ", f.Arguments.Select(a => a.Value))
+                            : "NO_PARAMETERS");
+                    var actualParams = string.Join(", ", actualParamsList);
+                    var message = $"Expected function '{expectation.FunctionName}' to be called with parameters ({expectedParams}), but it was not called with those parameters. Actual parameters were: {actualParams}";
+                    outcomes.Add(Fail("ShouldCallFunctionWithParameters", message));
+                }
+                else
+                {
+                    var message = $"Expected function '{expectation.FunctionName}' to be called, but only these functions were called: {actualFunctions}";
+                    outcomes.Add(Fail("ShouldCallFunction", message));
+                }
+
+                continue;
+            }
+
+            remaining.Remove(matchedCall);
+            var passDescription = expectation.ExpectedParameters != null
+                ? "ShouldCallFunctionWithParameters"
+                : "ShouldCallFunction";
+            outcomes.Add(Pass(passDescription));
+        }
+
+        foreach (var notExpected in step.NotExpectedFunctionCalls)
+        {
+            if (allCalls.Any(f => f.Name == notExpected))
+            {
+                var message = $"Expected function '{notExpected}' NOT to be called, but it was called.";
+                outcomes.Add(Fail("ShouldNotCallFunction", message));
+            }
+            else
+            {
+                outcomes.Add(Pass("ShouldNotCallFunction"));
+            }
+        }
+    }
+
+    private static void EvaluateJson(PromptStep step, string responseText, List<AssertionOutcome> outcomes)
+    {
+        foreach (var expectation in step.JsonExpectations)
+        {
+            try
+            {
+                var deserializedObject = JsonSerializer.Deserialize(responseText, expectation.TargetType, expectation.Options);
+
+                if (deserializedObject == null)
+                {
+                    var message = $"Failed to deserialize JSON response to type '{expectation.TargetType.Name}': Deserialization resulted in null. Response: {responseText}";
+                    outcomes.Add(Fail("ShouldHaveJsonOfType", message));
+                    continue;
+                }
+
+                if (expectation.Validator != null)
+                {
+                    var validatorResult = expectation.Validator.DynamicInvoke(deserializedObject);
+                    if (validatorResult == null)
+                    {
+                        var message = $"JSON response validation returned null for type '{expectation.TargetType.Name}'. The validation predicate must return a boolean value. Response: {responseText}";
+                        outcomes.Add(Fail("ShouldHaveJsonOfType", message));
+                        continue;
+                    }
+
+                    if (!(bool)validatorResult)
+                    {
+                        var message = $"JSON response validation failed for type '{expectation.TargetType.Name}'. The deserialized object did not pass the validation predicate. Response: {responseText}";
+                        outcomes.Add(Fail("ShouldHaveJsonOfType", message));
+                        continue;
+                    }
+                }
+
+                outcomes.Add(Pass("ShouldHaveJsonOfType"));
+            }
+            catch (JsonException ex)
+            {
+                var message = $"Failed to deserialize JSON response to type '{expectation.TargetType.Name}': {ex.Message}. Response: {responseText}";
+                outcomes.Add(Fail("ShouldHaveJsonOfType", message, ex));
+            }
+        }
+    }
+
+    private PromptStep GetCurrentStep()
+    {
+        return steps.Count > 0 ? steps[steps.Count - 1] : (pendingStep ??= new PromptStep());
+    }
+
+    private void AddPromptStep(string prompt)
+    {
+        if (pendingStep is not null && steps.Count == 0)
+        {
+            pendingStep.Prompt = prompt;
+            steps.Add(pendingStep);
+            pendingStep = null;
+        }
+        else
+        {
+            steps.Add(new PromptStep { Prompt = prompt });
+        }
+    }
+
+    private async Task<EvaluationResult> EvaluateInternalAsync(ChatOptions? chatOptions, CancellationToken cancellationToken)
+    {
+        if (steps.Count == 0)
         {
             throw new DetesterException("No prompts have been added. Use WithPrompt or WithPrompts before asserting.");
         }
 
+        if (embeddingGenerator == null && steps.Any(s => s.SemanticExpectations.Count > 0))
+        {
+            throw new InvalidOperationException(
+                "ShouldBeSemanticallySimilarTo requires an embedding generator. Call WithEmbeddingGenerator(...) before evaluating.");
+        }
+
         var chatHistory = new List<ChatMessage>();
 
-        // Add instruction as system message if provided
         if (!string.IsNullOrWhiteSpace(instruction))
         {
             chatHistory.Add(new ChatMessage(ChatRole.System, instruction));
         }
 
-        foreach (var prompt in prompts)
+        var promptEvaluations = new List<PromptEvaluation>();
+
+        foreach (var step in steps)
         {
-            chatHistory.Add(new ChatMessage(ChatRole.User, prompt));
+            chatHistory.Add(new ChatMessage(ChatRole.User, step.Prompt));
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             var response = await chatClient.GetResponseAsync(chatHistory, chatOptions, cancellationToken: cancellationToken);
             sw.Stop();
 
+            var outcomes = new List<AssertionOutcome>();
+
             if (response?.Text == null)
             {
-                throw new DetesterException($"Received null response for prompt: {prompt}");
+                var nullMessage = $"Received null response for prompt: {step.Prompt}";
+                outcomes.Add(Fail("Response", nullMessage));
+                promptEvaluations.Add(new PromptEvaluation
+                {
+                    Prompt = step.Prompt,
+                    ResponseText = string.Empty,
+                    Assertions = outcomes,
+                    Duration = sw.Elapsed,
+                });
+                continue;
             }
 
-            if (maxLatency.HasValue && sw.Elapsed > maxLatency.Value)
+            var responseText = response.Text;
+
+            if (maxLatency.HasValue)
             {
-                throw new DetesterException(
-                    $"Response time {sw.Elapsed.TotalMilliseconds:F0}ms exceeded the maximum allowed latency of {maxLatency.Value.TotalMilliseconds:F0}ms for prompt: {prompt}");
+                if (sw.Elapsed > maxLatency.Value)
+                {
+                    var message = $"Response time {sw.Elapsed.TotalMilliseconds:F0}ms exceeded the maximum allowed latency of {maxLatency.Value.TotalMilliseconds:F0}ms for prompt: {step.Prompt}";
+                    outcomes.Add(Fail("ShouldRespondWithin", message));
+                }
+                else
+                {
+                    outcomes.Add(Pass("ShouldRespondWithin"));
+                }
             }
 
             if (maxTotalTokens.HasValue)
@@ -559,8 +971,12 @@ public class DetesterBuilder : IDetesterBuilder
                 var totalTokens = response.Usage?.TotalTokenCount;
                 if (totalTokens.HasValue && totalTokens.Value > maxTotalTokens.Value)
                 {
-                    throw new DetesterException(
-                        $"Total token usage {totalTokens.Value} exceeded the maximum of {maxTotalTokens.Value} for prompt: {prompt}");
+                    var message = $"Total token usage {totalTokens.Value} exceeded the maximum of {maxTotalTokens.Value} for prompt: {step.Prompt}";
+                    outcomes.Add(Fail("ShouldUseTokensUnder", message));
+                }
+                else
+                {
+                    outcomes.Add(Pass("ShouldUseTokensUnder"));
                 }
             }
 
@@ -569,237 +985,110 @@ public class DetesterBuilder : IDetesterBuilder
                 var completionTokens = response.Usage?.OutputTokenCount;
                 if (completionTokens.HasValue && completionTokens.Value > maxCompletionTokens.Value)
                 {
-                    throw new DetesterException(
-                        $"Completion token usage {completionTokens.Value} exceeded the maximum of {maxCompletionTokens.Value} for prompt: {prompt}");
+                    var message = $"Completion token usage {completionTokens.Value} exceeded the maximum of {maxCompletionTokens.Value} for prompt: {step.Prompt}";
+                    outcomes.Add(Fail("ShouldUseCompletionTokensUnder", message));
+                }
+                else
+                {
+                    outcomes.Add(Pass("ShouldUseCompletionTokensUnder"));
                 }
             }
 
-            chatHistory.Add(new ChatMessage(ChatRole.Assistant, response.Text));
+            EvaluateTextAssertions(step, responseText, outcomes);
+            EvaluateFunctionCalls(step, response, outcomes);
+            EvaluateJson(step, responseText, outcomes);
+            await EvaluateSemanticAsync(step, responseText, outcomes, cancellationToken);
+            await EvaluateJudgeAsync(step, responseText, outcomes, cancellationToken);
 
-            // Check if response contains expected or unexpected text for any of the assertions
-            if (expectedResponses.Count > 0 || orResponseGroups.Count > 0 ||
-                unexpectedResponses.Count > 0 || unexpectedAnyResponses.Count > 0 ||
-                regexPatterns.Count > 0 || containAllSubstrings.Count > 0 ||
-                containAnyGroups.Count > 0 || equalityExpectations.Count > 0)
+            chatHistory.Add(new ChatMessage(ChatRole.Assistant, responseText));
+
+            promptEvaluations.Add(new PromptEvaluation
             {
-                var responseText = response.Text ?? string.Empty;
+                Prompt = step.Prompt,
+                ResponseText = responseText,
+                Assertions = outcomes,
+                Duration = sw.Elapsed,
+                TotalTokenCount = response.Usage?.TotalTokenCount,
+                OutputTokenCount = response.Usage?.OutputTokenCount,
+            });
+        }
 
-                // Check AND assertions
-                var missingExpectations = expectedResponses
-                    .Where(expected => !responseText.Contains(expected, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+        return new EvaluationResult { Prompts = promptEvaluations };
+    }
 
-                if (missingExpectations.Count > 0)
-                {
-                    var missingText = string.Join(", ", missingExpectations.Select(e => $"'{e}'"));
-                    throw new DetesterException(
-                        $"Response did not contain expected text(s): {missingText}. " +
-                        $"Actual response: {responseText}");
-                }
+    private async Task EvaluateSemanticAsync(
+        PromptStep step,
+        string responseText,
+        List<AssertionOutcome> outcomes,
+        CancellationToken cancellationToken)
+    {
+        if (step.SemanticExpectations.Count == 0 || embeddingGenerator == null)
+        {
+            return;
+        }
 
-                // Check individual NOT-CONTAINS assertions
-                var violatingUnexpected = unexpectedResponses
-                    .Where(unexpected => responseText.Contains(unexpected, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+        var responseEmbedding = await embeddingGenerator.GenerateAsync(
+            responseText, cancellationToken: cancellationToken);
+        var responseVector = responseEmbedding.Vector.ToArray();
 
-                if (violatingUnexpected.Count > 0)
-                {
-                    var violatingText = string.Join(", ", violatingUnexpected.Select(e => $"'{e}'"));
-                    throw new DetesterException(
-                        $"Response contained unexpected text(s): {violatingText}. " +
-                        $"Actual response: {responseText}");
-                }
+        foreach (var expectation in step.SemanticExpectations)
+        {
+            var expectedEmbedding = await embeddingGenerator.GenerateAsync(
+                expectation.Expected, cancellationToken: cancellationToken);
+            var expectedVector = expectedEmbedding.Vector.ToArray();
 
-                // Check NOT-CONTAINS-ANY assertions (ensure all specified texts are absent)
-                var violatingAny = unexpectedAnyResponses
-                    .Where(unexpected => responseText.Contains(unexpected, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
+            var score = CosineSimilarity(responseVector, expectedVector);
 
-                if (violatingAny.Count > 0)
-                {
-                    var violatingText = string.Join(", ", violatingAny.Select(e => $"'{e}'"));
-                    throw new DetesterException(
-                        $"Response contained one or more texts that should not appear: {violatingText}. " +
-                        $"Actual response: {responseText}");
-                }
-
-                // Check regex patterns
-                foreach (var pattern in regexPatterns)
-                {
-                    if (!System.Text.RegularExpressions.Regex.IsMatch(responseText, pattern))
-                    {
-                        throw new DetesterException(
-                            $"Response did not match the required regular expression pattern '{pattern}'. " +
-                            $"Actual response: {responseText}");
-                    }
-                }
-
-                // Check that response contains all required substrings
-                var missingAllSubstrings = containAllSubstrings
-                    .Where(s => !responseText.Contains(s, StringComparison.OrdinalIgnoreCase))
-                    .ToList();
-
-                if (missingAllSubstrings.Count > 0)
-                {
-                    var missingText = string.Join(", ", missingAllSubstrings.Select(e => $"'{e}'"));
-                    throw new DetesterException(
-                        $"Response did not contain all required substrings: {missingText}. " +
-                        $"Actual response: {responseText}");
-                }
-
-                // Check ANY-groups (at least one in each group must match)
-                foreach (var group in containAnyGroups)
-                {
-                    var hasAny = group.Any(s => responseText.Contains(s, StringComparison.OrdinalIgnoreCase));
-                    if (!hasAny)
-                    {
-                        var options = string.Join("' OR '", group);
-                        throw new DetesterException(
-                            $"Response did not contain any of the required alternatives: '{options}'. " +
-                            $"Actual response: {responseText}");
-                    }
-                }
-
-                // Check equality expectations
-                foreach (var expectation in equalityExpectations)
-                {
-                    if (!string.Equals(responseText, expectation.Expected, expectation.Comparison))
-                    {
-                        throw new DetesterException(
-                            $"Response was not equal to the expected text. Expected: '{expectation.Expected}', Actual: '{responseText}'.");
-                    }
-                }
-
-                // Check OR assertions (at least one in each OR group must match)
-                foreach (var orGroup in orResponseGroups)
-                {
-                    var hasMatch = orGroup.Any(expected =>
-                        responseText.Contains(expected, StringComparison.OrdinalIgnoreCase));
-
-                    if (!hasMatch)
-                    {
-                        var orOptions = string.Join("' OR '", orGroup);
-                        throw new DetesterException(
-                            $"Response did not contain any of the expected alternatives: '{orOptions}'. " +
-                            $"Actual response: {responseText}");
-                    }
-                }
+            if (score < expectation.MinScore)
+            {
+                var message = $"Response was not semantically similar enough to the expected text. Similarity score {score:F3} was below the required minimum of {expectation.MinScore:F3}. Expected: '{expectation.Expected}', Actual response: {responseText}";
+                outcomes.Add(Fail("ShouldBeSemanticallySimilarTo", message));
             }
-
-            // Check function call expectations
-            if (expectedFunctionCalls.Count > 0)
+            else
             {
-                // Extract function calls from assistant messages in the ChatResponse
-                var functionCalls = response.Messages
-                    .Where(m => m.Role == ChatRole.Assistant)
-                    .SelectMany(m => m.Contents.OfType<FunctionCallContent>())
-                    .ToList();
-
-                foreach (var expectation in expectedFunctionCalls)
-                {
-                    FunctionCallContent? matchedCall = null;
-
-                    foreach (var functionCall in functionCalls)
-                    {
-                        if (functionCall.Name == expectation.FunctionName)
-                        {
-                            if (expectation.ExpectedParameters != null)
-                            {
-                                if (ParametersMatch(functionCall.Arguments, expectation.ExpectedParameters))
-                                {
-                                    matchedCall = functionCall;
-                                    break;
-                                }
-                            }
-                            else
-                            {
-                                matchedCall = functionCall;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (matchedCall == null)
-                    {
-                        if (functionCalls.Count == 0)
-                        {
-                            throw new DetesterException(
-                                $"Expected function '{expectation.FunctionName}' to be called, but no function calls were made.");
-                        }
-
-                        var actualFunctions = string.Join(", ", functionCalls.Select(f => $"'{f.Name}'"));
-
-                        if (expectation.ExpectedParameters != null)
-                        {
-                            var expectedParams = string.Join(", ", expectation.ExpectedParameters.Select(p => $"{p.Key}={p.Value}"));
-                            var actualParamsList = functionCalls
-                                .Where(f => f.Name == expectation.FunctionName)
-                                .Select(f => f.Arguments != null
-                                    ? string.Join(", ", f.Arguments.Select(a => a.Value))
-                                    : "NO_PARAMETERS");
-                            var actualParams = string.Join(", ", actualParamsList);
-                            throw new DetesterException(
-                                $"Expected function '{expectation.FunctionName}' to be called with parameters ({expectedParams}), but it was not called with those parameters. Actual parameters were: {actualParams}");
-                        }
-                        else
-                        {
-                            throw new DetesterException(
-                                $"Expected function '{expectation.FunctionName}' to be called, but only these functions were called: {actualFunctions}");
-                        }
-                    }
-
-                    functionCalls.Remove(matchedCall);
-                }
+                outcomes.Add(Pass("ShouldBeSemanticallySimilarTo"));
             }
+        }
+    }
 
-            // Check JSON expectations
-            if (jsonExpectations.Count > 0)
+    private async Task EvaluateJudgeAsync(
+        PromptStep step,
+        string responseText,
+        List<AssertionOutcome> outcomes,
+        CancellationToken cancellationToken)
+    {
+        if (step.JudgeExpectations.Count == 0)
+        {
+            return;
+        }
+
+        var judgeClient = judge ?? chatClient;
+
+        foreach (var expectation in step.JudgeExpectations)
+        {
+            var systemPrompt =
+                "You are a strict evaluator for automated tests. Given a CRITERIA and an AI RESPONSE, " +
+                "decide whether the response satisfies the criteria. Reply with exactly 'PASS' if it does, " +
+                "or 'FAIL: <short reason>' if it does not. Do not output anything else.";
+            var userPrompt = $"CRITERIA:\n{expectation.Criteria}\n\nAI RESPONSE:\n{responseText}";
+
+            var judgeMessages = new List<ChatMessage>
             {
-                var responseText = response.Text ?? string.Empty;
+                new ChatMessage(ChatRole.System, systemPrompt),
+                new ChatMessage(ChatRole.User, userPrompt),
+            };
 
-                foreach (var expectation in jsonExpectations)
-                {
-                    try
-                    {
-                        // Attempt to deserialize the response text as JSON
-                        var deserializedObject = JsonSerializer.Deserialize(responseText, expectation.TargetType, expectation.Options);
+            var judgeResponse = await judgeClient.GetResponseAsync(judgeMessages, cancellationToken: cancellationToken);
+            var verdict = judgeResponse?.Text?.Trim() ?? string.Empty;
 
-                        if (deserializedObject == null)
-                        {
-                            throw new DetesterException(
-                                $"Failed to deserialize JSON response to type '{expectation.TargetType.Name}': " +
-                                $"Deserialization resulted in null. Response: {responseText}");
-                        }
-
-                        // If a validator is provided, invoke it
-                        if (expectation.Validator != null)
-                        {
-                            var result = expectation.Validator.DynamicInvoke(deserializedObject);
-                            if (result == null)
-                            {
-                                throw new DetesterException(
-                                    $"JSON response validation returned null for type '{expectation.TargetType.Name}'. " +
-                                    $"The validation predicate must return a boolean value. " +
-                                    $"Response: {responseText}");
-                            }
-
-                            var validationResult = (bool)result;
-                            if (!validationResult)
-                            {
-                                throw new DetesterException(
-                                    $"JSON response validation failed for type '{expectation.TargetType.Name}'. " +
-                                    $"The deserialized object did not pass the validation predicate. " +
-                                    $"Response: {responseText}");
-                            }
-                        }
-                    }
-                    catch (JsonException ex)
-                    {
-                        throw new DetesterException(
-                            $"Failed to deserialize JSON response to type '{expectation.TargetType.Name}': {ex.Message}. " +
-                            $"Response: {responseText}", ex);
-                    }
-                }
+            if (verdict.StartsWith("PASS", StringComparison.OrdinalIgnoreCase))
+            {
+                outcomes.Add(Pass("ShouldSatisfy"));
+            }
+            else
+            {
+                var message = $"Response did not satisfy the criteria '{expectation.Criteria}'. Judge verdict: {verdict}. Actual response: {responseText}";
+                outcomes.Add(Fail("ShouldSatisfy", message));
             }
         }
     }

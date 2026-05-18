@@ -20,8 +20,24 @@ Detester is a .NET library that enables you to write deterministic tests for AI-
 - **JSON Response Validation**: Deserialize and validate JSON responses from AI models with type-safe validation
 - **Reliability Evaluation**: Run the same test multiple times and assert a minimum pass rate to handle LLM non-determinism
 - **Performance Assertions**: Assert response latency and token usage stay within defined budgets
+- **Semantic Assertions**: Assert the response is semantically similar to an expected text using embeddings
+- **LLM-as-Judge**: Assert the response satisfies a natural-language criteria, evaluated by an LLM
+- **Non-throwing Evaluation**: `EvaluateAsync` returns a structured result for custom reporting and CI dashboards
+- **Dataset Evaluation**: Run the same assertions over a table of input cases and aggregate a pass rate
+- **Prompt-scoped Assertions**: Assertions bind to the prompt they follow in multi-turn tests
 - **Method Chaining**: Combine multiple prompts and assertions in a single test flow
 - **Extensible**: Build on Microsoft.Extensions.AI abstractions for maximum flexibility
+
+## Breaking changes in 2.0
+
+- **Assertions are now scoped to the prompt they follow.** In multi-prompt tests, an assertion
+  added after a `WithPrompt(...)` is evaluated only against *that* prompt's response, not against
+  every response. Previously every assertion was checked against every prompt's response.
+  Single-prompt tests are unaffected.
+- New `IDetesterBuilder` members are provided as **default interface methods**, so existing
+  external implementations of the interface continue to compile.
+- Not yet supported (planned): streaming / time-to-first-token assertions, JSON-schema
+  conformance, and cost assertions.
 
 ## Installation
 
@@ -277,6 +293,110 @@ await builder
 
 > **Note:** Token assertions only evaluate when the AI provider returns usage details in the response.
 
+### Prompt-scoped Assertions (Multi-turn)
+
+Assertions bind to the prompt they follow. In a multi-prompt conversation, each prompt's
+response is validated only against the assertions chained after it:
+
+```csharp
+await builder
+    .WithPrompt("What is the capital of France?")
+    .ShouldContainResponse("Paris")          // checked against the France response
+    .WithPrompt("What is the capital of Japan?")
+    .ShouldContainResponse("Tokyo")          // checked against the Japan response
+    .AssertAsync();
+```
+
+### Non-throwing Evaluation
+
+Use `EvaluateAsync` to get a structured result instead of an exception. Useful for custom
+reporting, dashboards, or inspecting per-prompt outcomes:
+
+```csharp
+var result = await builder
+    .WithPrompt("Explain recursion")
+    .ShouldContainResponse("function")
+    .EvaluateAsync();
+
+Console.WriteLine($"Passed: {result.Passed}");
+foreach (var prompt in result.Prompts)
+{
+    Console.WriteLine($"{prompt.Prompt} -> {prompt.Duration.TotalMilliseconds:F0}ms");
+    foreach (var assertion in prompt.Assertions)
+    {
+        Console.WriteLine($"  [{(assertion.Passed ? "PASS" : "FAIL")}] {assertion.Description}");
+    }
+}
+```
+
+`AssertAsync` and `AssertReliablyAsync` are built on top of `EvaluateAsync`; configuration
+misuse (e.g. no prompts) still throws `DetesterException`.
+
+### Semantic Similarity Assertions
+
+Substring matching is brittle for paraphrased LLM output. Assert semantic closeness using
+an embedding generator (any `IEmbeddingGenerator<string, Embedding<float>>`):
+
+```csharp
+await builder
+    .WithEmbeddingGenerator(embeddingGenerator)
+    .WithPrompt("In one sentence, what is the capital of France?")
+    .ShouldBeSemanticallySimilarTo("The capital of France is Paris.", minScore: 0.8)
+    .AssertAsync();
+```
+
+The score is the cosine similarity between the response and expected embeddings.
+A semantic assertion without a configured embedding generator throws `InvalidOperationException`.
+
+### LLM-as-Judge Assertions
+
+Assert that a response satisfies a natural-language criteria, evaluated by an LLM. The judge
+defaults to the main chat client, or set a dedicated one via `WithJudge`:
+
+```csharp
+await builder
+    .WithJudge(judgeChatClient) // optional; defaults to the main chat client
+    .WithPrompt("Write a product review for a coffee mug")
+    .ShouldSatisfy("the response expresses a clearly positive sentiment")
+    .AssertAsync();
+```
+
+### Negative Function-Call Assertions
+
+Assert that a function/tool was **not** called:
+
+```csharp
+await builder
+    .WithPrompt("Just answer in plain text")
+    .ShouldNotCallFunction("delete_everything")
+    .AssertAsync();
+```
+
+### Dataset / Table-driven Evaluation
+
+Run the same configuration over a dataset of input cases and aggregate a pass rate:
+
+```csharp
+var cases = new[]
+{
+    new DatasetCase { Input = "Capital of France?", Expected = "Paris", Name = "fr" },
+    new DatasetCase { Input = "Capital of Italy?",  Expected = "Rome",  Name = "it" },
+};
+
+var result = await DetesterDataset.EvaluateAsync(
+    chatClient,
+    cases,
+    (builder, c) => builder.WithPrompt(c.Input).ShouldContainResponse(c.Expected!));
+
+Console.WriteLine($"Pass rate: {result.PassRate:P0} ({result.PassCount}/{result.Cases.Count})");
+
+// Or throw if below a threshold:
+await DetesterDataset.AssertAsync(
+    chatClient, cases,
+    (builder, c) => builder.WithPrompt(c.Input).ShouldContainResponse(c.Expected!),
+    requiredPassRate: 0.9);
+```
+
 ## Error Handling
 
 Detester throws `DetesterException` when:
@@ -288,9 +408,17 @@ Detester throws `DetesterException` when:
 - Response latency exceeds `ShouldRespondWithin` limit
 - Token usage exceeds `ShouldUseTokensUnder` or `ShouldUseCompletionTokensUnder` limit
 - Pass rate in `AssertReliablyAsync` falls below the required threshold
+- Response is not semantically similar enough (`ShouldBeSemanticallySimilarTo`)
+- The LLM judge rejects the response (`ShouldSatisfy`)
+- A function asserted via `ShouldNotCallFunction` was called
+- Dataset pass rate falls below the threshold in `DetesterDataset.AssertAsync`
+
+`EvaluateAsync` does **not** throw on assertion failures — it returns an `EvaluationResult`.
+It still throws for configuration misuse.
 
 Detester throws `InvalidOperationException` when:
 - `OrShouldContainResponse` is called without a prior assertion
+- `ShouldBeSemanticallySimilarTo` is used without a configured embedding generator
 
 Example:
 

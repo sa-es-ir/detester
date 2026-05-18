@@ -9,6 +9,8 @@ using System.ClientModel;
 /// </summary>
 public sealed class AzureOpenAIChatClientFixture : IDisposable
 {
+    private readonly AzureOpenAIClient client;
+
     public AzureOpenAIChatClientFixture()
     {
         var apiKey = Environment.GetEnvironmentVariable("AzureOpenAI__ApiKey");
@@ -24,7 +26,7 @@ public sealed class AzureOpenAIChatClientFixture : IDisposable
                 "Ensure AzureOpenAI__ApiKey, AzureOpenAI__Endpoint and AzureOpenAI__ChatDeploymentName are set.");
         }
 
-        var client = new AzureOpenAIClient(new Uri(endpoint), new ApiKeyCredential(apiKey));
+        client = new AzureOpenAIClient(new Uri(endpoint), new ApiKeyCredential(apiKey));
 
         // Base IChatClient for Detester (no tools).
         ChatClient = client.GetChatClient(deploymentName).AsIChatClient();
@@ -34,6 +36,21 @@ public sealed class AzureOpenAIChatClientFixture : IDisposable
     /// Gets a plain chat client without tools (used by response string tests).
     /// </summary>
     public IChatClient ChatClient { get; }
+
+    /// <summary>
+    /// Creates an embedding generator if AzureOpenAI__EmbeddingDeploymentName is configured;
+    /// otherwise returns null so semantic tests can skip gracefully.
+    /// </summary>
+    public IEmbeddingGenerator<string, Embedding<float>>? CreateEmbeddingGenerator()
+    {
+        var embeddingDeployment = Environment.GetEnvironmentVariable("AzureOpenAI__EmbeddingDeploymentName");
+        if (string.IsNullOrWhiteSpace(embeddingDeployment))
+        {
+            return null;
+        }
+
+        return client.GetEmbeddingClient(embeddingDeployment).AsIEmbeddingGenerator();
+    }
 
     /// <summary>
     /// Creates a client configured for function-calling tests using AIFunction.

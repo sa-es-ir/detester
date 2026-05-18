@@ -143,6 +143,51 @@ public interface IDetesterBuilder
     IDetesterBuilder ShouldCallFunctionWithParameters(string functionName, IDictionary<string, object?> expectedParameters);
 
     /// <summary>
+    /// Asserts that the AI model did NOT call the specified function/tool.
+    /// </summary>
+    /// <param name="functionName">The name of the function that must not have been called.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldNotCallFunction(string functionName)
+        => throw new NotSupportedException("This IDetesterBuilder implementation does not support ShouldNotCallFunction.");
+
+    /// <summary>
+    /// Configures the embedding generator used by <see cref="ShouldBeSemanticallySimilarTo"/>.
+    /// </summary>
+    /// <param name="generator">The embedding generator to use for semantic similarity checks.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder WithEmbeddingGenerator(IEmbeddingGenerator<string, Embedding<float>> generator)
+        => throw new NotSupportedException("This IDetesterBuilder implementation does not support WithEmbeddingGenerator.");
+
+    /// <summary>
+    /// Configures the chat client used as an LLM judge by <see cref="ShouldSatisfy"/>.
+    /// If not set, the main chat client is used as the judge.
+    /// </summary>
+    /// <param name="judge">The chat client to use as the judge.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder WithJudge(IChatClient judge)
+        => throw new NotSupportedException("This IDetesterBuilder implementation does not support WithJudge.");
+
+    /// <summary>
+    /// Asserts that the AI response is semantically similar to the expected text,
+    /// using embedding cosine similarity. Requires an embedding generator configured
+    /// via <see cref="WithEmbeddingGenerator"/>.
+    /// </summary>
+    /// <param name="expected">The expected text to compare against semantically.</param>
+    /// <param name="minScore">The minimum cosine similarity score (between -1.0 and 1.0) required to pass. Defaults to 0.8.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldBeSemanticallySimilarTo(string expected, double minScore = 0.8)
+        => throw new NotSupportedException("This IDetesterBuilder implementation does not support ShouldBeSemanticallySimilarTo.");
+
+    /// <summary>
+    /// Asserts that the AI response satisfies a natural-language criteria, as judged by an LLM.
+    /// Uses the judge configured via <see cref="WithJudge"/>, or the main chat client if none is set.
+    /// </summary>
+    /// <param name="criteria">The natural-language criteria the response must satisfy.</param>
+    /// <returns>The builder instance for method chaining.</returns>
+    IDetesterBuilder ShouldSatisfy(string criteria)
+        => throw new NotSupportedException("This IDetesterBuilder implementation does not support ShouldSatisfy.");
+
+    /// <summary>
     /// Asserts that the AI responds within the specified time limit.
     /// The check applies to each individual prompt's response time.
     /// </summary>
@@ -181,6 +226,26 @@ public interface IDetesterBuilder
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task AssertAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Executes the configured prompts and evaluates all assertions WITHOUT throwing,
+    /// returning a structured result. Use this to build custom reporting or to inspect
+    /// per-prompt outcomes. Configuration misuse (e.g. no prompts) still throws.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>The structured evaluation result.</returns>
+    Task<EvaluationResult> EvaluateAsync(CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("This IDetesterBuilder implementation does not support EvaluateAsync.");
+
+    /// <summary>
+    /// Executes the configured prompts and evaluates all assertions WITHOUT throwing,
+    /// returning a structured result.
+    /// </summary>
+    /// <param name="chatOptions">The chat options to use. If null, the main one on the builder is used.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>The structured evaluation result.</returns>
+    Task<EvaluationResult> EvaluateAsync(ChatOptions? chatOptions, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("This IDetesterBuilder implementation does not support EvaluateAsync.");
 
     /// <summary>
     /// Runs the test multiple times and asserts that it passes at least the specified fraction of runs.
